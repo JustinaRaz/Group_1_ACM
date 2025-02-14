@@ -118,7 +118,7 @@ for (i in bias_list){
       r[1,t] <- favourite_hand_agent(bias,noise)
       
       #guessr
-      g_res <-favourite_hand_guessr_1(prev_outcome = r[1,t-1],
+      g_res <-RL_guessr(prev_outcome = r[1,t-1],
                                       Q_prev = Q[,t-1],
                                       choice_prev = r[2,t-1] + 1,
                                       alpha = alpha,
