@@ -1,1 +1,3 @@
-# Group_1_ACM
+# Advanced Cognitive Modeling 
+
+Repository contains the code for portfolio assignments.
