@@ -177,7 +177,7 @@ for (i in bias_list){
       r[1,t] <- favourite_hand_agent(bias,noise)
       
       #guessr
-      r[2,t] <- wsls_agent_g(opp_choice = r[1,t-1],
+      r[2,t] <- wsls_agent_guessr(opp_choice = r[1,t-1],
                              choice_prev =r[2,t-1])
       
       
