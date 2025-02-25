@@ -37,12 +37,12 @@ transformed parameters {
     matrix[k, n] Q;  // Expected values for each arm
     matrix[k, n] exp_p;  // Probabilities exp
     matrix[k, n] p; //p
-    ///////////////////
+  /////////////////// non con. scales
+  // alpha from cont logit to [0,1] bounded prob
     real<lower=0,upper=1> alpha_p = inv_logit(alpha);
+  //theta from cont to [0,inf] bounded scale
     real<lower=0> theta_l = exp(theta);
-    
-    //vector[2] x = [0,0]';
-    
+  
     // Initialize Q for the first trial
     for (j in 1:k) {
         Q[j, 1] = 0.5;  // Set initial expected value for both arms
@@ -54,12 +54,6 @@ transformed parameters {
       p[j,1] = exp_p[j,1]/sum(exp_p[,1]);
       
     }
-
-    // Compute probabilities for the first trial using softmax
-    //p[, 1] = softmax(Q[, 1] / theta);
-    
-
-
     /////////////////////////
     // Loop over trials to update Q-values and probabilities
     for (i in 2:n) {
@@ -86,22 +80,18 @@ transformed parameters {
       
     }
 }
-
-
-
-
 }
 
 
 model {
   //priors
-  //prior to alpha
+  //prior to alpha cont scale
   target += normal_lpdf(alpha|0,1);
-  //prior to theta 
+  //prior to theta cont scale
   target += normal_lpdf(theta|0,1);
-
+  
+  // turn by estimation
   for (i in 1:n){
-   
   vector[k] x = [p[1,i],p[2,i]]'; 
   target += categorical_lpmf(h[i]+1| x);
   
@@ -111,5 +101,6 @@ model {
   
 
 generated quantities {
+  
   
 }

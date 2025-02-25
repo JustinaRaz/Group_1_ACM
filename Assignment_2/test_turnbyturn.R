@@ -1,4 +1,5 @@
 library(cmdstanr)
+library(LaplacesDemon)
 # biased random with increasing bias !
 #random agent with bias
 favourite_hand_agent <- function(bias,noise){
@@ -13,22 +14,7 @@ favourite_hand_agent <- function(bias,noise){
   return(guess)
 }
 
-turns <- 100
-r <- array(NA,turns)
-bias_v <- array(NA,turns)
-b_inc <- 1.005
-#initialize first 
-bias_v[1] <- 0.55
-r[1] <- favourite_hand_agent(bias= bias_v[1],
-                             noise = 0)
 
-for (i in 2:turns){
-  bias_v[i] <- bias_v[i-1] * b_inc
-  r[i] <- favourite_hand_agent(bias = bias_v[i],
-                               noise = 0)
-  
-  
-}
 ##### RL agent
 #Reinforcement leearning agent
 RL_guessr <- function(prev_outcome,Q_prev,choice_prev,
@@ -65,6 +51,24 @@ RL_guessr <- function(prev_outcome,Q_prev,choice_prev,
   
   #order guess, previous Q
   return(c(guess,Q))
+  
+}
+
+
+turns <- 100
+r <- array(NA,turns)
+bias_v <- array(NA,turns)
+b_inc <- 1.005
+#initialize first 
+bias_v[1] <- 0.55
+r[1] <- favourite_hand_agent(bias= bias_v[1],
+                             noise = 0)
+
+for (i in 2:turns){
+  bias_v[i] <- bias_v[i-1] * b_inc
+  r[i] <- favourite_hand_agent(bias = bias_v[i],
+                               noise = 0)
+  
   
 }
 
