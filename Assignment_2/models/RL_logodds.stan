@@ -147,5 +147,43 @@ generated quantities {
      prior_preds[3,i] = 0;
     }
   }
+  
+  ///////////////////////posterior predictive checks
+  //only a vector here, because otcome comes from the data
+  vector[n] posterior_preds;
+  matrix[k,n] postp_Q, postp_exp_p, postp_p;
+  ///////////////// first round 
+  // Initialize Q for the first trial
+    for (j in 1:k) {
+        postp_Q[j, 1] = 0.5;  // Set initial expected value for both arms
+        postp_exp_p[j,1]= exp(theta_l*postp_Q[j,1]);
+        
+    }
+    for (j in 1:k){
+      postp_p[j,1] = postp_exp_p[j,1]/sum(postp_exp_p[,1]);
+      
+    }
+  vector[k] postp_p_turnwise_1 = [postp_p[1,1],postp_p[2,1]]'; 
+  posterior_preds[1] = categorical_rng(postp_p_turnwise_1) - 1;
+  ////////////////////////////
+  // every other round
+  for (i in 2:n){
+      for (j in 1:k) {
+        //Update Q-value for the chosen arm 
+          if(posterior_preds[i-1]+1==j){
+            postp_Q[j,i] = postp_Q[j, i - 1] + alpha_p * (outcome[i - 1] - postp_Q[j, i - 1]);
+          }
+          else {
+            postp_Q[j,i] = postp_Q[j,i-1];
+          }
+          postp_exp_p[j,i]= exp(theta_l*postp_Q[j,i]);
+      }
+      for (j in 1:k){
+      postp_p[j,i] = postp_exp_p[j,i]/sum(postp_exp_p[,i]);
+      }
+    // now determine choice
+    vector[k] postp_p_turnwise = [postp_p[1,i],postp_p[2,i]]'; 
+    posterior_preds[i]= categorical_rng(postp_p_turnwise) - 1;
+  }
 }
 
