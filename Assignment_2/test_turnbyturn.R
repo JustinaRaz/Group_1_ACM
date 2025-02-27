@@ -1,5 +1,7 @@
 library(cmdstanr)
 library(LaplacesDemon)
+library(stringr)
+library(tidyverse)
 # biased random with increasing bias !
 #random agent with bias
 favourite_hand_agent <- function(bias,noise){
@@ -258,4 +260,47 @@ samples <- mod$sample(
   adapt_delta = 0.99, # how high a learning rate to adjust hyperparameters during warmup
 )
 
-samples$summary(c("theta","alpha","theta_l","alpha_p"))
+############prior visualization
+#MORE TO COME
+
+
+
+
+
+############# prior predictive check
+#get all varnames
+samples_varnames <- samples$summary()$variable
+## get prior_predictions for RL agent
+# get varnames that start with prior_pred[2,] 
+prior_pred_varnames <- na.omit(str_extract(samples_varnames,
+                                           "^prior_preds\\[2,.*"))
+#extract prior_predictions
+prior_predictions <- samples$draws(
+  variables = prior_pred_varnames,
+  inc_warmup = FALSE,
+  format = "df"
+)
+#pivot long, add turn values as separate columns
+pp_vis <- prior_predictions %>% 
+  pivot_longer(cols = seq(1,120,by = 1))
+pp_vis <- pp_vis %>% 
+  mutate(turn = as.integer(str_extract(name,"(\\d+)(?!.*\\d)")))
+####################
+#look at distribution of prior based hand choices for RL 
+pp_vis %>% 
+  ggplot(aes(x = value))+
+  geom_density() +
+  theme_classic()
+
+#look at how the mean choices change across all chains as turns increase
+pp_vis %>% 
+  group_by(name) %>%
+  reframe( mu =mean(value)) %>% 
+  mutate(turn = as.integer(str_extract(name,"(\\d+)(?!.*\\d)"))) %>% 
+  ggplot(aes(x=turn, y=mu))+
+  geom_line() +
+  geom_hline(yintercept = 0.5, linetype = 2,
+             alpha = 0.8, col = "darkorange") +
+  theme_classic()
+
+
