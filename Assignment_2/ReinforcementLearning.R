@@ -59,7 +59,7 @@ RL_guessr <- function(prev_outcome,Q_prev,choice_prev,
 #data creation
 set.seed(123)
 turns <- 120
-bias <- 0.7
+bias <- 0.9
 noise <- 0
 theta <- 1
 alpha <- 0.8
@@ -226,6 +226,7 @@ pp2_vis <- pp2_vis %>%
 pp2_vis %>% 
   ggplot(aes(x = value, group = name))+
   geom_density(color="steelblue") +
+  #geom_density(aes(x=r[2,]), colour = "black")+
   theme_classic()
 
 #look at how the mean choices change across all chains as turns increase
