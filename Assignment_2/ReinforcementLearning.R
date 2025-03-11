@@ -59,7 +59,7 @@ RL_guessr <- function(prev_outcome,Q_prev,choice_prev,
 #data creation
 set.seed(123)
 turns <- 120
-bias <- 0.9
+bias <- 0.7
 noise <- 0
 theta <- 1
 alpha <- 0.8
@@ -220,13 +220,16 @@ posterior_predictions <- samples$draws(
 pp2_vis <- posterior_predictions %>% 
   pivot_longer(cols = seq(1,120,by = 1))
 pp2_vis <- pp2_vis %>% 
-  mutate(turn = as.integer(str_extract(name,"(\\d+)(?!.*\\d)")))
+  mutate(turn = as.integer(str_extract(name,"(\\d+)(?!.*\\d)")),
+         )
 ####################
-#look at distribution of posterior based choices 
+
 pp2_vis %>% 
-  ggplot(aes(x = value, group = name))+
+  group_by(name,turn) %>% 
+  reframe(m=Mode(value)) %>% 
+  ggplot(aes(x =m))+
   geom_density(color="steelblue") +
-  #geom_density(aes(x=r[2,]), colour = "black")+
+  geom_density(aes(x=r[1,]), color="black")+
   theme_classic()
 
 #look at how the mean choices change across all chains as turns increase
@@ -239,3 +242,9 @@ pp2_vis %>%
   geom_hline(yintercept = 0.5, linetype = 2,
              alpha = 0.8, col = "darkorange") +
   theme_classic()
+
+
+##########3 notes
+
+#dnorm(x,2,1)  1 bias in logit scale
+#dnorm(x,-2,1) 0 bias in logit scale
