@@ -208,3 +208,34 @@ data_model_RL <-function(seed,turns,random_agent_bias,
   return(list_params)
   
 }
+################################
+pp_checks <- function(data_model_output_list){
+  ##### function for creating visualizations about pp_checks
+  df <- tibble(vals = c(data_model_output_list$outcomes,
+                        data_model_output_list$prior_predictions,
+                        data_model_output_list$posterior_predictions),
+               type = rep(c("data",
+                            "prior_prediction",
+                            "posterior_prediction"), each = data_model_output_list$turns)
+  ) %>% 
+    mutate(vals = as_factor(vals))
+  
+  break_l_1 = seq(0,1, by = 0.2)
+  break_l_2 = break_l_1 * turns
+  
+  df %>% 
+    ggplot(aes(x = vals, fill = type)) +
+    geom_histogram(alpha = 0.5, stat = "count", bins = 2)+
+    facet_wrap(~type)+
+    ggtitle("% of 1s and 0s") +
+    geom_hline(yintercept = turns/2, linetype = 2) +
+    scale_y_continuous(breaks = break_l_2,
+                       labels =  break_l_1 *100) +
+    scale_x_discrete(breaks = c(0,1)) +
+    scale_fill_manual(values = c("purple","darkorange","steelblue"),
+                      guide="none") +
+    ylab("") +
+    xlab("") +
+    theme_classic()
+}
+
