@@ -104,7 +104,6 @@ MPD <- function(x) {
 
 
 ########### MPD vis
-
 color_help <- c("steelblue","darkorange","steelblue")
 
 df_fin %>% 
@@ -124,7 +123,8 @@ df_fin %>%
   #create types 
   #second removes everyhing after "_"
   mutate(type = gsub("^[^_]*.","",full_name)) %>% 
-  #cheat a bit by rounding bias?
+  #filter theta cos we know its bad
+  filter(true_val < 10) %>% 
   
   ## ggplot it
   ggplot(aes(x=true_val,y=est_val, group=n_turns, color= bias))+
@@ -137,4 +137,43 @@ df_fin %>%
   facet_wrap(n_turns~type, scales = "free", ncol = 2) +
   theme_classic()
 
-  
+#saveRDS(df_fin,"param_recov_df.rds")
+##### see alpha and theta influence each other
+
+
+### error rom true value
+df_fin %>% 
+  group_by(seed,true_theta, true_alpha, bias, n_turns) %>% 
+  #get point estimates from distributions
+  reframe(est_theta = MPD(posterior_theta),
+          est_alpha = MPD(posterior_alpha)) %>% 
+  filter(true_theta < 10) %>% 
+  mutate(theta_error = (true_theta - est_theta)^2,
+         alpha_error = (true_alpha - est_alpha)^2) %>% 
+  ggplot(aes(x = true_theta, y = theta_error,
+             color = true_alpha))+
+  scale_color_gradientn(colours = c("steelblue","darkorange"))+
+  geom_point()+
+  #refline
+  facet_wrap(~n_turns)+
+  theme_classic()
+
+df_fin %>% 
+group_by(seed,true_theta, true_alpha, bias, n_turns) %>% 
+  #get point estimates from distributions
+  reframe(est_theta = MPD(posterior_theta),
+          est_alpha = MPD(posterior_alpha)) %>% 
+  filter(true_theta < 10) %>% 
+  mutate(theta_error = (true_theta - est_theta)^2,
+         alpha_error = (true_alpha - est_alpha)^2) %>% 
+  ggplot(aes(x = true_alpha, y = alpha_error,
+             color = true_theta))+
+  scale_color_gradientn(colours = c("steelblue","darkorange"))+
+  geom_point()+
+  #refline
+  facet_wrap(~n_turns)+
+  theme_classic()
+
+
+############### investigate small and high vals 
+
