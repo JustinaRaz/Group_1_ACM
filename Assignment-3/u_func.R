@@ -109,3 +109,49 @@ df_data_to_list <- function(df){
   
   return(data)
 }
+
+blank_slate_model <- function(data, n_draws = 8000){
+  
+  # since  the outcome is always a perfect beta distribution,
+  # sampling it 8000 times is a bit of an overkill, but it is kept 
+  # for consistency with the more complicated models
+  
+  posterior <- array(NA, c(length(data$ID), #each subject
+                           length(data$FACE_ID), #each image
+                           n_draws)) #posterior dist
+  
+  posterior_pred <- array(NA, c(length(data$ID), #each subject
+                                length(data$FACE_ID))) #each image
+  #pre progress bar
+  print("Starting up...")
+  for (i in 1:length(data$ID)){
+    for ( j in 1:length(data$FACE_ID)){
+      
+      #get alpha (-1 for the 0,7 conversion)
+      S_R_alpha <- (data$F_R[i,j]-1) + (data$G_R[i,j]-1)
+      #get beta ( 8 - for the 0,7 conversion)
+      S_R_beta <- (8-data$F_R[i,j]) + (8-data$G_R[i,j])
+      #make posterior on 0-1 scale
+      posterior[i,j,] <- rbeta(n_draws,S_R_alpha,S_R_beta)
+      
+      for (k in 1:n_draws){
+        #rescale to 1-8
+        posterior[i,j,k] <- rescale_rate( posterior[i,j,k])
+      }
+      
+      posterior_pred[i,j] <- sample(posterior[i,j,],1)
+      
+    }
+    
+    #progress bar
+    pc <- as.character(round(i/length(data$ID)*100,1))
+    print(c(pc," % done"))
+  }
+  
+  results <- list(
+    posteriors = posterior,
+    posterior_preds = posterior_pred
+  )
+  
+  return(results)
+}
