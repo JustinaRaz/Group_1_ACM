@@ -82,70 +82,42 @@ sim_dat <- n_subj_blank_slate_trust(n_subj = 10,
                                     n_image = 150)
 
 ###################################
+# convert data 
+
+data_l <- df_data_to_list(sim_dat)
+
+####################################
 # model
 # since it has no parameters, the model can be made without estimation
 # it is basically the same as the generative mechanism, sampling from 
 # a beta distribution
-
-data <- df_data_to_list(sim_dat)
-n_draws <- 8000
-i <- 1
-j <- 1
-####################################
-#define model
-blank_slate_model <- function(data, n_draws = 8000){
-  
-  # since  the outcome is always a perfect beta distribution,
-  # sampling it 8000 times is a bit of an overkill, but it is kept 
-  # for consistency with the more complicated models
-  
-  posterior <- array(NA, c(length(data$ID), #each subject
-                               length(data$FACE_ID), #each image
-                               n_draws)) #posterior dist
-  
-  posterior_pred <- array(NA, c(length(data$ID), #each subject
-                               length(data$FACE_ID))) #each image
-  #pre progress bar
-  print("Starting up...")
-  for (i in 1:length(data$ID)){
-    for ( j in 1:length(data$FACE_ID)){
-      
-      #get alpha (-1 for the 0,7 conversion)
-      S_R_alpha <- (data$F_R[i,j]-1) + (data$G_R[i,j]-1)
-      #get beta ( 8 - for the 0,7 conversion)
-      S_R_beta <- (8-data$F_R[i,j]) + (8-data$G_R[i,j])
-      #make posterior on 0-1 scale
-      posterior[i,j,] <- rbeta(n_draws,S_R_alpha,S_R_beta)
-      
-      for (k in 1:n_draws){
-        #rescale to 1-8
-        posterior[i,j,k] <- rescale_rate( posterior[i,j,k])
-      }
-      
-      posterior_pred[i,j] <- sample(posterior[i,j,],1)
-    
-    }
-    
-    #progress bar
-    pc <- as.character(round(i/length(data$ID)*100,1))
-    print(c(pc," % done"))
-  }
-  
-  results <- list(
-    posteriors = posterior,
-    posterior_preds = posterior_pred
-  )
-  
-  return(results)
-}
-
-#######################################################
-
 posteriors <- blank_slate_model(data_l)
-
 posteriors$posterior_preds
 
 
+#######################################################
+# stan it up
+file <- file.path("models/blank_slate_beta.stan")
 
+# Compile the model
+mod <- cmdstan_model(file, 
+                     # this specifies we can parallelize the gradient estimations on multiple cores
+                     cpp_options = list(stan_threads = TRUE), 
+                     # this is a trick to make it faster
+                     stanc_options = list("O1")) 
 
+# The following command calls Stan with specific options.
+samples <- mod$sample(
+  data = data, # the data :-)
+  seed = 123,  # a seed, so I always get the same results
+  chains = 4,  # how many chains should I fit (to check whether they give the same results)
+  parallel_chains = 4, # how many of the chains can be run in parallel?
+  threads_per_chain = 1, # distribute gradient estimations within chain across multiple cores
+  iter_warmup = 1000,  # warmup iterations through which hyperparameters (steps and step length) are adjusted
+  iter_sampling = 2000, # total number of iterations
+  refresh = 200,  # how often to show that iterations have been run
+  #output_dir = "simmodels", # saves the samples as csv so it can be later loaded
+  max_treedepth = 20, # how many steps in the future to check to avoid u-turns
+  adapt_delta = 0.99, # how high a learning rate to adjust hyperparameters during warmup
+)
 
