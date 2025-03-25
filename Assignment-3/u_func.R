@@ -99,8 +99,10 @@ return(df_fin)
 # F_R[subject,image]
 df_data_to_list <- function(df){
   data <- list(
-    ID = unique(df$ID),
-    FACE_ID = unique(df$FACE_ID),
+    minval = 1,
+    maxval = 8,
+    s = length(unique(df$ID)),
+    n = length(unique(df$FACE_ID)),
     F_R = t(matrix(as.integer(df$F_R), nrow = length(unique(df$FACE_ID)))),
     G_R = t(matrix(as.integer(df$G_R), nrow = length(unique(df$FACE_ID)))),
     S_R =t(matrix(as.integer(df$S_R), nrow = length(unique(df$FACE_ID))))
