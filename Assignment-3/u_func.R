@@ -118,16 +118,18 @@ blank_slate_model <- function(data, n_draws = 8000){
   # sampling it 8000 times is a bit of an overkill, but it is kept 
   # for consistency with the more complicated models
   
-  posterior <- array(NA, c(length(data$ID), #each subject
-                           length(data$FACE_ID), #each image
-                           n_draws)) #posterior dist
+  posterior <- array(NA, c(data$s, #each subject
+                          data$n, #each image
+                           n_draws))
+   #posterior dist
   
-  posterior_pred <- array(NA, c(length(data$ID), #each subject
-                                length(data$FACE_ID))) #each image
+  posterior_pred <- array(NA, c(data$s, #each subject
+                                data$n
+                                )) #each image
   #pre progress bar
   print("Starting up...")
-  for (i in 1:length(data$ID)){
-    for ( j in 1:length(data$FACE_ID)){
+  for (i in 1:data$s){
+    for ( j in 1:data$n){
       
       #get alpha (-1 for the 0,7 conversion)
       S_R_alpha <- (data$F_R[i,j]-1) + (data$G_R[i,j]-1)
@@ -146,7 +148,7 @@ blank_slate_model <- function(data, n_draws = 8000){
     }
     
     #progress bar
-    pc <- as.character(round(i/length(data$ID)*100,1))
+    pc <- as.character(round(i/data$s*100,1))
     print(c(pc," % done"))
   }
   
@@ -156,4 +158,25 @@ blank_slate_model <- function(data, n_draws = 8000){
   )
   
   return(results)
+}
+
+## a function for taking a wide version of data and formatting it long
+## f.x. prior_prediction[1,1], prior_rediction[1,2]...
+## becomes subject | turn | name
+#              1   |  1   | prior_prediction[1,1]
+#              1   |  2   | prior_prediction[1,2]
+untangle_estimates <- function(df, nsubj, nturn){
+  
+  df_2 <- df 
+  #filter by turn
+  df_slice <- df_2 %>% 
+    pivot_longer(cols = seq(1,nturn*n_subj,by = 1))
+  df_slice <- df_slice %>% 
+    #turn is derived from index so "..[1,12]" is the value for subject 1 at turn 12
+    mutate(FACE_ID = as.integer(str_extract(name,"(\\d+)(?!.*\\d)")),
+           ID = as.integer(str_extract(str_extract(name,"^\\D*(\\d*)"),
+                                       "\\d+"))
+    )
+  
+  return(df_slice)
 }
