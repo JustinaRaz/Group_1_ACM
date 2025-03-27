@@ -14,6 +14,21 @@ assign_GR <- function(FaceRating){
   return(G_R)
 }
 
+#a function for calculating artifical group ratings without biasing to extremities
+non_biased_G_R <- function(F_R){
+  
+  face_update <- case_when(F_R == 1  || F_R == 2~ sample(c(0,2,3),1),
+                           F_R == 3 ~ sample(c(-2,0,2,3),1),
+                           F_R == 4 || F_R == 5 ~ sample(c(-3,-2,0,2,3),1),
+                           F_R == 6 ~ sample(c(-3,-2,0,2),1),
+                           F_R == 7 || F_R == 8 ~ sample(c(-3,-2,0),1)
+  )
+  G_R <- F_R + face_update
+  
+  return(G_R)
+}
+
+
 # rescale to [1,8] scale and round to integer from beta dist values
 rescale_rate <- function (x, nx1 = 1, nx2 = 8,
                      minx = 0, maxx = 1) 
@@ -25,7 +40,7 @@ return(nx)
 # a blank slate agent, no prior trust
 blank_slate_trust <- function(subject_ID,n_image,
                               min_scale=1,max_scale=8,
-                              condition=NA){
+                              condition=NA, non_bias = T){
   
   #one condition
   cond <- condition
@@ -55,7 +70,7 @@ blank_slate_trust <- function(subject_ID,n_image,
     rowwise() %>% 
     mutate( F_R = sample(opts,1),
             F_R_beta = list(c(F_R-1,max_scale-F_R)),
-            G_R = assign_GR(F_R),
+            G_R = ifelse(non_bias == T,non_biased_G_R(F_R),assign_GR(F_R)),
             G_R_beta = list(c(G_R-1,max_scale-G_R)),
             # add up alphas and betas to get second rating beta dist
             S_R_beta= list(c(F_R_beta[1]+G_R_beta[1],
@@ -75,7 +90,7 @@ blank_slate_trust <- function(subject_ID,n_image,
 # blank slate trust for n number of participants
 n_subj_blank_slate_trust <-function(n_subj, n_image,
                                     min_scale=1,max_scale=8,
-                                    condition=NA){
+                                    condition=NA,non_bias = T){
 for (i in 1:n_subj){
   
   if (exists("df_fin",inherits=FALSE)){

@@ -174,7 +174,7 @@ posterior_predictions <- samples$draws(
 
 
 #
-pp_2_vis <- untangle_estimates(posterior_predictions, nsubj = nsubj, nturn = ntrial)
+pp_2_vis <- untangle_estimates(posterior_predictions, nsubj = nsubj, nturn = n_image)
 
 pp_3 <-pp_2_vis %>% 
   ### sample 100 values from prior dists
@@ -204,3 +204,6 @@ pp_4 <-pp_2_vis %>%
 
 grid.arrange(pp_1,pp_3,
              pp_2,pp_4)
+
+
+
