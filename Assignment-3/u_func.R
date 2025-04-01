@@ -14,8 +14,8 @@ assign_GR <- function(FaceRating){
   return(G_R)
 }
 
-#a function for calculating artifical group ratings without biasing to extremities
-non_biased_G_R <- function(F_R){
+#a function for calculating artifical group ratings with biasing to the center
+center_biased_G_R <- function(F_R){
   
   face_update <- case_when(F_R == 1  || F_R == 2~ sample(c(0,2,3),1),
                            F_R == 3 ~ sample(c(-2,0,2,3),1),
@@ -40,7 +40,7 @@ return(nx)
 # a blank slate agent, no prior trust
 blank_slate_trust <- function(subject_ID,n_image,
                               min_scale=1,max_scale=8,
-                              condition=NA, non_bias = T){
+                              condition=NA){
   
   #one condition
   cond <- condition
@@ -70,7 +70,7 @@ blank_slate_trust <- function(subject_ID,n_image,
     rowwise() %>% 
     mutate( F_R = sample(opts,1),
             F_R_beta = list(c(F_R-1,max_scale-F_R)),
-            G_R = ifelse(non_bias == T,non_biased_G_R(F_R),assign_GR(F_R)),
+            G_R = assign_GR(F_R),
             G_R_beta = list(c(G_R-1,max_scale-G_R)),
             # add up alphas and betas to get second rating beta dist
             S_R_beta= list(c(F_R_beta[1]+G_R_beta[1],
@@ -90,7 +90,7 @@ blank_slate_trust <- function(subject_ID,n_image,
 # blank slate trust for n number of participants
 n_subj_blank_slate_trust <-function(n_subj, n_image,
                                     min_scale=1,max_scale=8,
-                                    condition=NA,non_bias = T){
+                                    condition=NA){
 for (i in 1:n_subj){
   
   if (exists("df_fin",inherits=FALSE)){
@@ -108,6 +108,193 @@ for (i in 1:n_subj){
 }
   
 return(df_fin)
+}
+
+
+#generate a single agent with prior trust, first rating already integrates the prior
+prior_trust_no_multilevel <- function(subject_ID,
+                                      n_image,
+                                      prior_alpha,
+                                      min_scale=1,max_scale=8,
+                                      condition=NA){
+  
+  
+  prior_beta <- (max_scale-1)-prior_alpha
+  #one condition
+  cond <- condition
+  #one participant
+  s <- subject_ID
+  #150 images
+  i <- 1:n_image
+  #random options
+  opts <- seq(min_scale,max_scale, by = 1 )
+  
+  #create it
+  df <- tibble(
+    ID = rep(s,length(i)),
+    FACE_ID = i,
+    p_beta = list(c(prior_alpha,prior_beta)),
+    p_trust = NA,
+    F_R_beta = NA,
+    F_R = NA,
+    G_R = NA,
+    G_R_beta = NA,
+    S_R_beta = NA,
+    S_R_draw = NA,
+    S_R = NA,
+    CONDITION = cond
+  ) 
+  
+  #prior trust 
+  
+  df <- df %>% 
+    rowwise() %>% 
+    mutate(p_trust = rbeta(1,
+                           p_beta[1],
+                           p_beta[2])) %>% 
+    ungroup()
+  
+  
+  #first rating comes from integration
+  df <- df %>% 
+    rowwise() %>%
+    mutate( 
+      #face is percieved
+      fra = sample(opts,1) -1,
+      frb = (max_scale-1) - fra,
+      no_prior = rescale_rate(rbeta(1,fra,frb)),
+      
+      #integration
+      F_R_u_trust = rbeta(1,p_beta[1]+ fra, 
+                          p_beta[2] + frb),
+      
+      #rating is assigned
+      F_R = rescale_rate(F_R_u_trust),
+      F_R_beta = list(c(F_R-1,max_scale-F_R)),
+      
+      
+      #using the slightly extremity heavy group rating assingment 
+      G_R = assign_GR(F_R),
+      G_R_beta = list(c(G_R-1,max_scale-G_R)),
+      # add up alphas and betas to get second rating beta dist
+      S_R_beta= list(c(F_R_beta[1]+G_R_beta[1],
+                       F_R_beta[2]+G_R_beta[2])),
+      #draw from the respective beta distributions
+      S_R_draw = rbeta(1,S_R_beta[1],S_R_beta[2]),
+      # rescale to [1,8] scale and round to integer
+      S_R = rescale_rate(x = S_R_draw)
+    ) %>% 
+    #select data relevant columns
+    select(ID, FACE_ID, p_beta, no_prior, F_R, G_R, S_R)
+  
+  
+  return(df)
+}
+
+n_subj_prior_trust_multilevel <- function(n_subj, n_image,
+                                          trust_a_gamma_shape,
+                                          trusta_a_gamma_rate,
+                                          min_scale=1,max_scale=8,
+                                          condition=NA){
+  for (i in 1:n_subj){
+    
+    #calculate individual prior trust alphas
+    ind_p_trust_a <- round(rgamma(1,trust_a_gamma_shape,trusta_a_gamma_rate),3)
+    ind_p_trust_a <- ifelse(ind_p_trust_a > (maxval-1), (maxval-1), ind_p_trust_a)
+    
+    
+    if (exists("df_fin",inherits=FALSE)){
+      df_temp <- prior_trust_no_multilevel(subject_ID = i ,n_image,
+                                           prior_alpha = ind_p_trust_a,
+                                           min_scale,max_scale,
+                                           condition)
+      
+      df_fin <- rbind(df_fin,df_temp)
+    } else {
+      df_fin <- prior_trust_no_multilevel(subject_ID = i,n_image,
+                                          prior_alpha = ind_p_trust_a,
+                                          min_scale,max_scale,
+                                          condition)
+    }
+    
+  }
+  
+  return(df_fin)
+  
+  
+}
+
+# a blank slate agent, no prior trust, G_R pulls towards center
+blank_slate_trust_center_bias <- function(subject_ID,n_image,
+                              min_scale=1,max_scale=8,
+                              condition=NA){
+  
+  #one condition
+  cond <- condition
+  #one participant
+  s <- subject_ID
+  #150 images
+  i <- 1:n_image
+  #random options
+  opts <- seq(min_scale,max_scale, by = 1 )
+  
+  #create it
+  df <- tibble(
+    ID = rep(s,length(i)),
+    FACE_ID = i,
+    F_R = NA,
+    F_R_beta = NA,
+    G_R = NA,
+    G_R_beta = NA,
+    S_R_beta = NA,
+    S_R_draw = NA,
+    S_R = NA,
+    CONDITION = cond
+  ) %>% 
+    #fill it by row,
+    #Beta(a,b) a = rating - 1 so it becomes [0,7]
+    #          b = max - rating so it is also [0,7] and a+b = 7
+    rowwise() %>% 
+    mutate( F_R = sample(opts,1),
+            F_R_beta = list(c(F_R-1,max_scale-F_R)),
+            G_R = center_biased_G_R(F_R),
+            G_R_beta = list(c(G_R-1,max_scale-G_R)),
+            # add up alphas and betas to get second rating beta dist
+            S_R_beta= list(c(F_R_beta[1]+G_R_beta[1],
+                             F_R_beta[2]+G_R_beta[2])),
+            #draw from the respective beta distributions
+            S_R_draw = rbeta(1,S_R_beta[1],S_R_beta[2]),
+            # rescale to [1,8] scale and round to integer
+            S_R = rescale_rate(x = S_R_draw)
+    ) %>% 
+    #select data relevant columns
+    select(ID, FACE_ID, F_R, G_R, S_R)
+  
+  
+  return(df)
+}
+
+# blank slate trust for n number of participants
+n_subj_blank_slate_trust_center_bias <-function(n_subj, n_image,
+                                    min_scale=1,max_scale=8,
+                                    condition=NA){
+  for (i in 1:n_subj){
+    
+    if (exists("df_fin",inherits=FALSE)){
+      df_temp <- blank_slate_trust_center_bias(subject_ID = i ,n_image,
+                                   min_scale,max_scale,
+                                   condition)
+      
+      df_fin <- rbind(df_fin,df_temp)
+    } else {
+      df_fin <- blank_slate_trust_center_bias(subject_ID = i,n_image,
+                                  min_scale,max_scale,
+                                  condition)
+    }
+    
+  }
+  
+  return(df_fin)
 }
 
 #function for wrangling data to stan acceptable list format
