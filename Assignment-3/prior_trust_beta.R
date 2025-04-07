@@ -22,51 +22,73 @@ source("u_func.R")
 # Prior trust should be roughly on the same scale, so [0;7] for alpha
 # and Beta, with alpha + beta = 7
 # this is achieved by sampling alpha from a gamma distribution and beta = 7-alpha
-# if alpha is > 7 it is rounded down
+# if beta is < 0 it is rounded down
 
 
 #illustrate priors and integration
 
 
 
-# simualting
-test <- n_subj_prior_trust_multilevel(n_subj = 10,
-                                     n_image = 150,
-                                     trust_a_gamma_shape = 6,
-                                     trusta_a_gamma_rate = 2,
-                                  )
+
 
 
 ########## Illustrating trust update
 set.seed(1)
-facerating <- rbeta(1000,4,3)
-grouprating <- rbeta(1000,2,5)
-secondrating <- rbeta(1000,4+2,3+5)
 
-df_vis <- tibble(type= rep(c("F_R","G_R","S_R"),each = 1000),
-                 vals = c(facerating,grouprating,secondrating)
-)
-
-df_vis %>% 
-  ggplot(aes(x = vals, group = type, fill = type))+
-  geom_density(alpha=.5)+
-  theme_classic()
 
 ##################################
 #simulate data 
 
 n_subj <- 10
 n_image <- 150
-sim_dat <- n_subj_blank_slate_trust(n_subj = n_subj,
-                                    n_image = n_image
+# simualting
+sim_dat <- n_subj_prior_trust_multilevel(n_subj,
+                                      n_image,
+                                      trust_a_gamma_shape = 6,
+                                      trusta_a_gamma_rate = 2,
 )
 
-sim_dat_2 <- n_subj_blank_slate_trust_non_bias(n_subj = n_subj,
-                                               n_image = n_image
-)
 
 ###################################
 # convert data 
 
 data_l <- df_data_to_list(sim_dat)
-data_l_2 <- df_data_to_list(sim_dat_2)
+
+#add priors
+data_l <- append(data_l,
+                 c(prior_a_shape=6,prior_a_rate=2)
+)
+
+###################### stan it up
+file <- file.path("models/prior_trust_beta.stan")
+
+# Compile the model
+mod <- cmdstan_model(file, 
+                     # this specifies we can parallelize the gradient estimations on multiple cores
+                     cpp_options = list(stan_threads = TRUE), 
+                     # this is a trick to make it faster
+                     stanc_options = list("O1")) 
+
+# The following command calls Stan with specific options.
+time_1 <-   Sys.time()
+
+samples <- mod$sample(
+  data = data_l, # the data :-)
+  seed = 123,  # a seed, so I always get the same results
+  chains = 4,  # how many chains should I fit (to check whether they give the same results)
+  parallel_chains = 4, # how many of the chains can be run in parallel?
+  threads_per_chain = 2, # distribute gradient estimations within chain across multiple cores
+  iter_warmup = 1000,  # warmup iterations through which hyperparameters (steps and step length) are adjusted
+  iter_sampling = 2000, # total number of iterations
+  refresh = 100,
+  # how often to show that iterations have been run
+  #output_dir = "simmodels", # saves the samples as csv so it can be later loaded
+  max_treedepth = 20, # how many steps in the future to check to avoid u-turns
+  adapt_delta = 0.99,
+  init = 0,# how high a learning rate to adjust hyperparameters during warmup
+)
+
+time_2 <-   Sys.time()
+
+time_2- time_1
+## before :35 mins, 63% divergences

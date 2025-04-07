@@ -200,7 +200,7 @@ n_subj_prior_trust_multilevel <- function(n_subj, n_image,
     
     #calculate individual prior trust alphas
     ind_p_trust_a <- round(rgamma(1,trust_a_gamma_shape,trusta_a_gamma_rate),3)
-    ind_p_trust_a <- ifelse(ind_p_trust_a > (maxval-1), (maxval-1), ind_p_trust_a)
+    ind_p_trust_a <- ifelse(ind_p_trust_a > (max_scale-1), (max_scale-1), ind_p_trust_a)
     
     
     if (exists("df_fin",inherits=FALSE)){
