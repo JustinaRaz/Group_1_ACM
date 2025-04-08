@@ -13,12 +13,32 @@ sim_dat <- n_subj_blank_slate_trust(n_subj = n_subj,
                                     n_image = n_image)
 data_l <- df_data_to_list(sim_dat)
 
+df <- read_csv("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3/data/Simonsen_clean.csv")
+
+df$ID <- as.integer(df$ID)
+df$FaceID <- as.integer(df$FaceID)
+df$FirstRating <- as.integer(df$FirstRating)
+df$GroupRating <- as.integer(df$GroupRating )
+df$SecondRating <- as.integer(df$SecondRating)
+
+names(df)[1] <- "ID"
+names(df)[2] <- "FACE_ID"
+names(df)[3] <- "F_R"
+names(df)[4] <- "G_R"
+names(df)[5] <- "S_R"
+
+
+df <- df[, 1:5]
+
+df <- df_data_to_list(df)
+
 #---------------------------------------- Load the models for comparison:
 
-model_1 <- file.path("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3/test_model_comparison.stan")
-model_2 <- file.path("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3/test_model_comparison_2.stan")
+model_1 <- file.path("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3/models/blank_slate_beta.stan")
+model_2 <- file.path("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3/prior_trust_beta.stan")
 
 # Compile the model
+
 
 mod_1 <- compile_model(model_1)
 mod_2 <- compile_model(model_2)
@@ -26,16 +46,21 @@ mod_2 <- compile_model(model_2)
 
 #---------------------------------------- Call Stan with specific options:
 
-samples_1 <- stan_sampling(model = mod_1, data = data_l, chains = 1) #n of chains = n of parallel chains.
-samples_2 <- stan_sampling(model = mod_2, data = data_l, chains = 1)
+samples_1 <- stan_sampling(model = mod_1, data = df) #n of chains = n of parallel chains.
+df_priors <- append(df, c(prior_a_shape = 6, prior_a_rate=2))
+samples_2 <- stan_sampling(model = mod_2, data = df_priors)
 
-#---------------------------------- Compute LOO for each model and scenario:
+ #---------------------------------- Compute LOO for each model and scenario:
 
 loo_m1 <- compute_loo(samples_1)
 loo_m2 <- compute_loo(samples_2)
 
 loo_weighted_m1 <- compute_loo(samples_1)
 loo_weighted_m2 <- compute_loo(samples_2)
+
+# Compare models
+loo_comparison <- loo_compare(loo_simple, loo_weighted)
+print(loo_comparison)
 
 #----------------------------- Checking the reliability of our LOO estimates:
 
