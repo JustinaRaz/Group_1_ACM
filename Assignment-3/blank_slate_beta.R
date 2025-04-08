@@ -80,20 +80,24 @@ df_vis %>%
 n_subj <- 10
 n_image <- 150
 sim_dat <- n_subj_blank_slate_trust(n_subj = n_subj,
-                                    n_image = n_image)
+                                    n_image = n_image
+                                    )
+
 
 ###################################
 # convert data 
 
 data_l <- df_data_to_list(sim_dat)
 
+
 ####################################
 # model
 # since it has no parameters, the model can be made without estimation
 # it is basically the same as the generative mechanism, sampling from 
 # a beta distribution
-posteriors <- blank_slate_model(data_l)
-posteriors$posterior_preds
+
+#posteriors <- blank_slate_model(data_l)
+#posteriors$posterior_preds
 
 
 #######################################################
@@ -112,11 +116,11 @@ samples <- mod$sample(
   fixed_param = TRUE,
   data = data_l, # the data :-)
   seed = 123,  # a seed, so I always get the same results
-  chains = 1,  # how many chains should I fit (to check whether they give the same results)
-  parallel_chains = 1, # how many of the chains can be run in parallel?
+  chains = 4,  # how many chains should I fit (to check whether they give the same results)
+  parallel_chains = 4, # how many of the chains can be run in parallel?
   threads_per_chain = 1, # distribute gradient estimations within chain across multiple cores
   iter_warmup = 0,  # warmup iterations through which hyperparameters (steps and step length) are adjusted
-  iter_sampling = 100, # total number of iterations
+  iter_sampling = 2000, # total number of iterations
   refresh = 200,
   adapt_engaged =0# how often to show that iterations have been run
   #output_dir = "simmodels", # saves the samples as csv so it can be later loaded
@@ -187,6 +191,7 @@ pp_3 <-pp_2_vis %>%
   xlab("")+
   theme_classic()
 
+
 pp_4 <-pp_2_vis %>% 
   ### sample 100 values from prior dists
   group_by(ID,FACE_ID) %>% 
@@ -204,6 +209,8 @@ pp_4 <-pp_2_vis %>%
 
 grid.arrange(pp_1,pp_3,
              pp_2,pp_4)
+
+
 
 
 

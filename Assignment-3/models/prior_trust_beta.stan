@@ -86,6 +86,9 @@ data{
   int<lower=1> minval, maxval;
   int<lower=1> s, n;
   array[s,n] int<lower=minval, upper=maxval> F_R, G_R, S_R;
+  
+  // priors
+  real<lower=0> prior_a_shape,prior_a_rate;
 }
 /*
 The transformed data block below processes 
@@ -121,22 +124,27 @@ F_R ~ beta(4,3), G_R ~ beta(2,5);
 S_R ~ beta(4+2,3+5)
 */
 transformed data{
- int<lower=minval-1,upper=maxval-1> F_R_alpha, F_R_beta, G_R_alpha, G_R_beta;
- array[s,n] int<lower=0> S_R_alpha, S_R_beta;
- //reverse scaling of S_R from data [1-8] to [0-1]
+ array[s,n] int<lower=0> G_R_alpha, G_R_beta;
+ 
+ //reverse scaling of F_R S_R from data [1-8] to [0-1]
  array[s,n] real<lower=0, upper=1> S_R_resc;
+ array[s,n] real<lower=0, upper=1> F_R_resc;
+ 
  
  for ( i in 1:s){
    for (j in 1:n){
-     //get S_R distribution alphas and betas
-     F_R_alpha = F_R[i,j]-1;
-     G_R_alpha = G_R[i,j]-1;
-     F_R_beta = maxval-F_R[i,j];
-     G_R_beta = maxval-G_R[i,j];
-     S_R_alpha[i,j] = F_R_alpha + G_R_alpha;
-     S_R_beta[i,j] = F_R_beta + G_R_beta;
-     // get rescaled S_R from data
-     S_R_resc[i,j] = inv_rescale_rate(S_R[i,j],
+     //scale F_R from data [1,8] to beta output [0,1]
+      F_R_resc[i,j] = inv_rescale_rate(F_R[i,j],
+                                      minval,
+                                      maxval
+                                      );
+                                      
+      // G_R parameters
+      G_R_alpha[i,j] = G_R[i,j]-1;
+      G_R_beta[i,j] = maxval-G_R[i,j];
+     
+      // get rescaled S_R from data
+      S_R_resc[i,j] = inv_rescale_rate(S_R[i,j],
                                       minval,
                                       maxval
                                       );
@@ -153,11 +161,42 @@ The parameters of the Stan model that will be estimated.
 */
 parameters{
   
+  // prior trust tendency
+  array[s] real<lower=0> prior_alpha;
+  // information that only comes from seeing the image
+  array[s,n] real<lower=0,upper=7> F_R_p_alpha;
+
 }
 /*
 The tranformed parameters block below 
 */
 transformed parameters {
+  
+  //prior beta from prior alpha (only estimate 1 to limit parameters)
+  array[s] real<lower=0> prior_beta;
+  array[s,n] real<lower=0,upper=7> F_R_p_beta;
+  
+  for (i in 1:s){
+    
+  prior_beta[i] = (maxval-1)-prior_alpha[i];
+    
+  if (prior_beta[i] < (minval-1)){
+      prior_beta[i] = (minval-1)+0.001;
+  }  
+  
+  
+ 
+}
+
+  for(i in 1:s){
+    for(j in 1:n){
+
+  
+  F_R_p_beta[i,j] = (maxval-1)-F_R_p_alpha[i,j];
+      
+    }
+  }
+
 
 }
 /*
@@ -165,21 +204,72 @@ The model block
 */
 
 model {
-//estimate assumed rescaled S_R trust from F_R and G_R
+//estimate assumed rescaled F_R from prior and F_R,
+//estimate S_R from and G_R
+
+//priors for prior knowledge
+for (i in 1:s){
+  target += gamma_lpdf(prior_alpha[i] | prior_a_shape,
+                                        prior_a_rate);
+                                        
+//diagnosis chunk
+//   if (prior_alpha[i]==0 || prior_alpha[i]==7 || 
+//       prior_beta[i]==0 || prior_beta[i]==7){
+//    print("asd");}
   
+}
+
+//picture info estimated from uniform 0.1-6.9,
+//very hacky :[
 for (i in 1:s){
   for (j in 1:n){
-      
-      if(S_R_resc[i,j] == 0){
-       target += beta_lpdf(0.1 | 0.1,
-                                          S_R_beta[i,j]);
-      } else if (S_R_resc[i,j] == 1){
-       target += beta_lpdf(0.9 |S_R_alpha[i,j],
-                                          0.1);
+   target += uniform_lpdf(F_R_p_alpha[i,j] | (minval-0.9), (maxval-1.1));
+   
+   //diagnosis chunk
+   //if (F_R_p_alpha[i,j]==0 || F_R_p_alpha[i,j]==7 || 
+  //     F_R_p_beta[i,j]==0 || F_R_p_beta[i,j]==7){
+  //  print("asd_2");}
+   
+  }
+}
+
+
+//integrate prior and picture 
+for (i in 1:s){
+  for (j in 1:n){
+    //safeguards against -inf and inf. Still a bit hacky :[
+      if(F_R_resc[i,j] == 0){
+       target += beta_lpdf(0.0001 | 0.0001,
+                                    prior_beta[i] + F_R_p_beta[i,j]);
+      } else if (F_R_resc[i,j] == 1){
+       target += beta_lpdf(0.9999 | prior_alpha[i] + F_R_p_alpha[i,j],
+                                    0.0001);
       } else {
+        
+        //diagnosis chunk
+        //if (F_R_resc[i,j]==0 || F_R_resc[i,j]==1){
+        //   print("asd_3");}
+   
+        
+        target += beta_lpdf(F_R_resc[i,j] | prior_alpha[i] + F_R_p_alpha[i,j],
+                                            prior_beta[i] + F_R_p_beta[i,j]);
+      }
+
+      //safeguards against -inf and inf. Still a bit hacky :[
+      if(S_R_resc[i,j] == 0){
+       target += beta_lpdf(0.0001 | 0.0001,
+                                    prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j]);
+      } else if (S_R_resc[i,j] == 1){
+       target += beta_lpdf(0.9999 | prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
+                                    0.0001);
+      } else {
+        
+        //diagnosis chunk
+        //if (S_R_resc[i,j]==0 || S_R_resc[i,j]==1){
+        //   print("asd_4");}
       
-      target += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
-                                          S_R_beta[i,j]);
+      target += beta_lpdf(S_R_resc[i,j] | prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
+                                          prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j]);
       }
   }
 }
@@ -197,97 +287,9 @@ generated quantities {
   // alpha and beta randomly drawn according to F_R and G_R rules
   // F_R <- [1,2,3,4,5,6,7,8]
   // G_R <- F_R + sample(c(-3,-2,0,2,3),1)
-  array[s,n] int<lower=minval, upper=maxval> prior_pred_F_R;
-  array[s,n] real<lower=minval, upper=maxval>prior_pred_G_R;
-  vector[5] change_vals = [-3,-2,0,2,3]';
-  real<lower=minval-1,upper=maxval-1> prior_pred_F_R_alpha, prior_pred_F_R_beta,
-                                     prior_pred_G_R_alpha, prior_pred_G_R_beta;
-  real<lower=minval-1> prior_pred_S_R_alpha, prior_pred_S_R_beta;
-  array[s,n] real<lower=minval> prior_pred_S_R;
-  
-  //maxval length vector of possible F_R probabilities
-  vector[maxval] prior_pred_F_R_probs = rep_vector(1.0/maxval, maxval);
-
-  for (i in 1:s){
-    for (j in 1:n){
-      //draw prior F_Rs
-      prior_pred_F_R[i,j] = categorical_rng(prior_pred_F_R_probs);
-      prior_pred_F_R_alpha = prior_pred_F_R[i,j]-1;
-      prior_pred_F_R_beta = maxval-prior_pred_F_R[i,j];
-      //calculate G_Rs
-      prior_pred_G_R[i,j] = G_R_from_F_R_rng(prior_pred_F_R[i,j], change_vals,
-                                         minval, maxval);
-      prior_pred_G_R_alpha = prior_pred_G_R[i,j]-1;
-      prior_pred_G_R_beta = maxval-prior_pred_G_R[i,j];
-      //make S_R predictions
-      prior_pred_S_R_alpha = prior_pred_F_R_alpha +  prior_pred_G_R_alpha;
-      prior_pred_S_R_beta = prior_pred_F_R_beta + prior_pred_G_R_beta;
-      
-      //hack to eliminate errors of alpha,theta or beta == 1 or 0;) 
-      if(prior_pred_S_R_alpha == 0){
-        prior_pred_S_R[i,j] = minval;
-      } else if (prior_pred_S_R_beta==0){
-        prior_pred_S_R[i,j] = maxval;
-      }else{
-      prior_pred_S_R[i,j] = round(
-                              rescale_rate(beta_rng(prior_pred_S_R_alpha,
-                                                    prior_pred_S_R_beta
-                                                    ),
-                                           minval,
-                                           maxval
-                                           )
-                                  ); 
-          }
-      
-    }
-    
-  }
  
   
   //////////////// Posterior predictive checks
   // make draws from updated trust values and round them
-  array[s,n] real<lower=0> posterior_preds;
-  int<lower=minval-1,upper=(maxval-1)*2> pp_S_R_alpha, pp_S_R_beta;
-  for (i in 1:s){
-    for (j in 1:n){
-
-       pp_S_R_alpha = (F_R[i,j]-1) + (G_R[i,j]-1);
-       pp_S_R_beta = (maxval-F_R[i,j]) + (maxval-G_R[i,j]);
-       
-       
-      if (pp_S_R_alpha == 0){
-         posterior_preds[i,j] = minval;
-      }else if (pp_S_R_beta==0){
-         posterior_preds[i,j] = maxval;
-      }else{
-       posterior_preds[i,j] = round(
-                              rescale_rate(beta_rng(pp_S_R_alpha,
-                                                    pp_S_R_beta
-                                                    ),
-                                           minval,
-                                           maxval
-                                           )
-                                  );
-           }
-    }
-  }
-  
-// loglikes
-array[s,n] real log_lik;
-
-for (i in 1:s){
-  for (j in 1:n){
-      
-      if(S_R_resc[i,j] == 0){
-       log_lik[i,j] += beta_lpdf(0.1 | 0.1,
-                                          S_R_beta[i,j]);
-      } else if (S_R_resc[i,j] == 1){
-      log_lik[i,j] += beta_lpdf(0.9 |S_R_alpha[i,j],
-                                          0.1);
-      } else {
-      
-      log_lik[i,j] += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
-                                                S_R_beta[i,j]);
-      }
-  }
+ 
 }
