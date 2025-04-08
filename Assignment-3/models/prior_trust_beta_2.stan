@@ -87,28 +87,61 @@ data{
   int<lower=1> s, n;
   array[s,n] int<lower=minval, upper=maxval> F_R, G_R, S_R;
   
-  // priors are hard wired in the model
-
+  // priors
+  real<lower=0> prior_a_shape,prior_a_rate;
 }
 /*
 The transformed data block below processes 
 raw input data for modelling.
 
+The 7 step scale [1,8] used to measure Trust is assumed
+to be a proxy measurement for the underlying 
+trust representation.
+
+Trust is assumed to be represented as a continous value [0,1].
+0 = complete distrust, 1 = complete trust.
+
+The underlying trust density is assumed to be distributed
+as Beta(alpha = F_R-1, beta = 8-F_R).
+alpha + beta = 8
+
+For values (F_R_alpha, F_R_beta, G_R_alpha, G_R_beta)
+Possible combinations are: 
+Beta(0,7), -- Distribution only has 0s 
+Beta(1,6), 
+Beta(2,5),
+...
+Beta(6,1)
+Beta(7,0) -- Distribution only has 1s
+
+After the information integration,
+S_R (second rating) is distributed as 
+Beta(alpha= F_R_alpha + G_R_alpha, beta = F_R_beta + G_R_beta)
+
+e.x.
+F_R = 4, G_R = 2;
+F_R ~ beta(4,3), G_R ~ beta(2,5);
+S_R ~ beta(4+2,3+5)
 */
 transformed data{
-/* group rating deconstruction variables
-   array[s,n] int<lower=0> G_R_alpha, G_R_beta;
+ array[s,n] int<lower=0> G_R_alpha, G_R_beta;
+ 
+ //rescaling of F_R S_R from data [1-8] to [0-7]
+ array[s,n] int<lower=minval-1, upper=maxval-1> S_R_resc;
+ array[s,n] int<lower=minval-1, upper=maxval-1> F_R_resc;
+ 
  
  for ( i in 1:s){
    for (j in 1:n){
+      F_R_resc[i,j] = F_R[i,j]-1;
+      S_R_resc[i,j] = S_R[i,j]-1;                           
       // G_R parameters
       G_R_alpha[i,j] = G_R[i,j]-1;
       G_R_beta[i,j] = maxval-G_R[i,j];
-  
    }
  }
  
-*/
+  
 }
 
 
@@ -118,66 +151,82 @@ The parameters of the Stan model that will be estimated.
 parameters{
   
   // prior trust tendency
-  array[s] real<lower=minval-1,upper=maxval-1> prior_alpha;
-  // subjectvive information that only comes from seeing the image
-  array[s,n] real<lower=minval-1,upper=maxval-1> F_R_p_alpha;
+  array[s] real<lower=0> prior_alpha;
+  // information that only comes from seeing the image
+  array[s,n] int<lower=0,upper=7> F_R_p_alpha;
 
 }
 /*
 The tranformed parameters block below 
 */
 transformed parameters {
+  
   //prior beta from prior alpha (only estimate 1 to limit parameters)
   array[s] real<lower=0> prior_beta;
-  array[s,n] real<lower=0,upper=7> F_R_p_beta;
+  array[s,n] int<lower=0,upper=7> F_R_p_beta;
   
   for (i in 1:s){
-  //calculate trust parameter beta from alpha while keeping on the same scale as G_R
+    
   prior_beta[i] = (maxval-1)-prior_alpha[i];
+    
+  if (prior_beta[i] < (minval-1)){
+      prior_beta[i] = (minval-1)+0.001;
+  }  
   
-  for(j in 1:n){
-  //calculate subjectie face beta from alpha while keeping on the same scale as G_R
+  
+ 
+}
+
+  for(i in 1:s){
+    for(j in 1:n){
+
+  
   F_R_p_beta[i,j] = (maxval-1)-F_R_p_alpha[i,j];
       
     }
-  }  
-    
+  }
+
+
 }
 /*
 The model block 
 */
 
 model {
+//estimate assumed rescaled F_R from prior and F_R,
+//estimate S_R from and G_R
 
-  for (i in 1:s){
-  //priors for prior trust hard coded uniform dist
-  target += uniform_lpdf(prior_alpha[i] | 0.1,
-                                          6.9);
+//priors for prior knowledge
+for (i in 1:s){
+  target += gamma_lpdf(prior_alpha[i] | prior_a_shape,
+                                        prior_a_rate);
+                                        
+  
+}
+
+//picture info estimated from uniform 0.1-6.9,
+//very hacky :[
+for (i in 1:s){
   for (j in 1:n){
-  //priors for subjective perception for each face, hard coded uniform dist
-   target += uniform_lpdf(F_R_p_alpha[i,j] | 0.1, 
-                                             6.9);
-   
-   
-  //estimate first rating from prior trust and subjective face
-  // F_R rescaled to 0-7 by -1
-  // betas calculated from alphas to be on same scale as G_R
-    target += beta_binomial_lpmf((F_R[i,j]-1) |7, prior_alpha[i] + F_R_p_alpha[i,j],
-                                                  prior_beta[i] + F_R_p_beta[i,j]
-                                );
-        
-  //estimate second rating from integrated group rating 
-  // S_R rescaled to 0-7 by -1
-  // G_R rescaled by G_R_alpha = G_R -1, G_R_beta = maxval - G_R
-    target += beta_binomial_lpmf((S_R[i,j]-1) |7, prior_alpha[i] + F_R_p_alpha[i,j] + (G_R[i,j]-1),
-                                                  prior_beta[i] + F_R_p_beta[i,j] + (maxval-G_R[i,j])
-                                );
-      
-   
-   
+   //target += uniform_lpdf(F_R_p_alpha[i,j] | (minval-0.9), (maxval-1.1));
+     target += binomial_lpmf(F_R_p_alpha[i,j] | 7, 0.5);
   }
 }
 
+
+//integrate prior and picture 
+for (i in 1:s){
+  for (j in 1:n){
+        target += beta_binomial_lpmf(F_R_resc[i,j] | 7, prior_alpha[i] + F_R_p_alpha[i,j],
+                                                        prior_beta[i] + F_R_p_beta[i,j]);
+
+      
+        target += beta_binomial_lpmf(S_R_resc[i,j] | 7, prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
+                                                         prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j]);
+  }
+}
+
+  
 }
 
 
