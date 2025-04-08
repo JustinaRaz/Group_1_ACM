@@ -371,7 +371,7 @@ array[s,n] real log_lik;
 for (i in 1:s){
   for (j in 1:n){
       
-      log_lik[i,j] += beta_lpdf(S_R_resc[i,j] | prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
+      log_lik[i,j] = beta_lpdf(S_R_resc[i,j] | prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
                                                 prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j]);
       }
   }
