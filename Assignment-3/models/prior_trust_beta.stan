@@ -283,13 +283,91 @@ The generated quantities block
 */ 
 
 generated quantities {
-  //////////////// Prior predictive checks
-  // alpha and beta randomly drawn according to F_R and G_R rules
-  // F_R <- [1,2,3,4,5,6,7,8]
-  // G_R <- F_R + sample(c(-3,-2,0,2,3),1)
+ //////////////// Prior predictive checks
+  array[s,n] real<lower=minval-1> prior_pred_alpha, prior_pred_beta;
+  array[s,n] real<lower=minval-1, upper=maxval-1>  prior_pred_F_R_p;
+  array[s,n] real<lower=minval, upper=maxval> prior_pred_F_R;
+  vector[5] change_vals = [-3,-2,0,2,3]';
+  array[s,n] real<lower=minval, upper=maxval> prior_pred_G_R;
+  array[s,n] real<lower=minval> prior_pred_S_R;
+  
+  //maxval length vector of possible F_R probabilities
+  vector[maxval] prior_pred_F_R_probs = rep_vector(1.0/maxval, maxval);
+
+  for (i in 1:s){
+          //drw prior trust
+          prior_pred_alpha[i] = gamma_rng(prior_shape,prior_rate);
+          
+    for (j in 1:n){
+      //draw prior F_R_ps
+      prior_pred_F_R_p[i,j] = categorical_rng(prior_pred_F_R_probs)-1;
+      //draw First ratng
+      prior_pred_F_R[i,j] =  round(
+                              rescale_rate(beta_rng(prior_pred_alpha[i] +  (prior_pred_F_R_p[i,j]-1),
+                                                    (maxval-prior_pred_alpha[i]) +  (maxval-prior_pred_F_R_p[i,j])
+                                                    ),
+                                           minval,
+                                           maxval
+                                           )
+                                  ); 
+      //calculate G_Rs
+      prior_pred_G_R[i,j] = G_R_from_F_R_rng(prior_pred_F_R[i,j], change_vals,
+                                         minval, maxval);
+     
+   
+      //hack to eliminate errors of alpha,theta or beta == 1 or 0;) 
+      prior_pred_S_R[i,j] = round(
+                              rescale_rate(beta_rng(prior_pred_alpha[i] +  (prior_pred_F_R_p[i,j]-1) + (prior_pred_G_R[i,j]-1) +
+                                                    (maxval-prior_pred_alpha[i]) + (maxval-prior_pred_F_R_p[i,j]) + (maxval-prior_pred_G_R[i,j])
+                                                    ),
+                                           minval,
+                                           maxval
+                                           )
+                                  ); 
+          }
+      
+    }
+    
+  }
  
   
   //////////////// Posterior predictive checks
   // make draws from updated trust values and round them
+  array[s,n] real<lower=0> posterior_preds;
+  int<lower=minval-1> pp_S_R_alpha, pp_S_R_beta;
+  for (i in 1:s){
+    for (j in 1:n){
+
+       pp_S_R_alpha = prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j];
+       pp_S_R_beta =  prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j];
+       
+       
+      if (pp_S_R_alpha == 0){
+         posterior_preds[i,j] = minval;
+      }else if (pp_S_R_beta==0){
+         posterior_preds[i,j] = maxval;
+      }else{
+       posterior_preds[i,j] = round(
+                              rescale_rate(beta_rng(pp_S_R_alpha,
+                                                    pp_S_R_beta
+                                                    ),
+                                           minval,
+                                           maxval
+                                           )
+                                  );
+           }
+    }
+  }
+  
+//loglikes
+array[s,n] real log_lik;
+
+for (i in 1:s){
+  for (j in 1:n){
+      
+      log_lik[i,j] += beta_lpdf(S_R_resc[i,j] | prior_alpha[i] + F_R_p_alpha[i,j] + G_R_alpha[i,j],
+                                                prior_beta[i] + F_R_p_beta[i,j] + G_R_beta[i,j]);
+      }
+  }
  
 }
