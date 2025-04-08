@@ -171,11 +171,11 @@ for (i in 1:s){
   for (j in 1:n){
       
       if(S_R_resc[i,j] == 0){
-       target += beta_lpdf(0.0001 | 0.0001,
+       target += beta_lpdf(0.1 | 0.1,
                                           S_R_beta[i,j]);
       } else if (S_R_resc[i,j] == 1){
-       target += beta_lpdf(0.9999 |S_R_alpha[i,j],
-                                          0.0001);
+       target += beta_lpdf(0.9 |S_R_alpha[i,j],
+                                          0.1);
       } else {
       
       target += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
@@ -270,5 +270,24 @@ generated quantities {
                                   );
            }
     }
+  }
+  
+// loglikes
+array[s,n] real log_lik;
+
+for (i in 1:s){
+  for (j in 1:n){
+      
+      if(S_R_resc[i,j] == 0){
+       log_lik[i,j] += beta_lpdf(0.1 | 0.1,
+                                          S_R_beta[i,j]);
+      } else if (S_R_resc[i,j] == 1){
+      log_lik[i,j] += beta_lpdf(0.9 |S_R_alpha[i,j],
+                                          0.1);
+      } else {
+      
+      log_lik[i,j] += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
+                                                S_R_beta[i,j]);
+      }
   }
 }
