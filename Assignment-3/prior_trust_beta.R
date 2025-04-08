@@ -92,3 +92,89 @@ time_2 <-   Sys.time()
 
 time_2- time_1
 ## before :35 mins, 63% divergences
+#######################################
+################# prior predictive checks
+#extract prior_predictions
+prior_predictions <- samples$draws(
+  variables = "prior_pred_S_R",
+  inc_warmup = FALSE,
+  format = "df"
+)
+
+
+#
+pp_vis <- untangle_estimates(prior_predictions,
+                             nsubj = n_subj, 
+                             nturn = n_image)
+
+pp_1 <- pp_vis %>% 
+  ### sample 100 values from prior dists
+  group_by(ID,FACE_ID) %>% 
+  reframe(draw = sample(value,100)) %>% 
+  ggplot(aes(x=draw, group = ID))+
+  geom_density(alpha= .5, color = "steelblue")+
+  scale_x_continuous(breaks = seq(1,8, by = 1)) +
+  ggtitle("100 Prior Prediction Draws")+
+  xlab("")+
+  theme_classic()
+
+pp_2 <- pp_vis %>% 
+  ### sample 100 values from prior dists
+  group_by(ID,FACE_ID) %>% 
+  reframe(mcv = mean(value)) %>% 
+  ggplot(aes(y=mcv, x = FACE_ID))+
+  geom_point(alpha= .5, color = "steelblue")+
+  geom_line(alpha= .5,color = "steelblue")+
+  geom_hline(yintercept = mean(1:8), linetype = 2) +
+  ggtitle("Predicted Prior Distribution Means \nby Subject and Image") +
+  ylab("Mean")+
+  facet_wrap(~ID)+
+  theme_classic()
+
+#######################################
+################# posterior predictive checks
+#extract prior_predictions
+posterior_predictions <- samples$draws(
+  variables = "posterior_preds",
+  inc_warmup = FALSE,
+  format = "df"
+)
+
+
+#
+pp_2_vis <- untangle_estimates(posterior_predictions, nsubj = nsubj, nturn = n_image)
+
+pp_3 <-pp_2_vis %>% 
+  ### sample 100 values from prior dists
+  group_by(ID,FACE_ID) %>% 
+  reframe(draw = sample(value,100)) %>% 
+  ggplot(aes(x=draw, group = ID))+
+  geom_density(alpha= .5, color = "steelblue")+
+  scale_x_continuous(breaks = seq(1,8, by = 1)) +
+  ggtitle("100 Posterior Prediction Draws")+
+  xlab("")+
+  theme_classic()
+
+
+pp_4 <-pp_2_vis %>% 
+  ### sample 100 values from prior dists
+  group_by(ID,FACE_ID) %>% 
+  reframe(mcv = mean(value)) %>% 
+  ggplot(aes(y=mcv, x = FACE_ID))+
+  geom_point(alpha= .5, color = "steelblue")+
+  geom_line(alpha= .5,color = "steelblue")+
+  geom_hline(yintercept = mean(1:8), linetype = 2) +
+  ggtitle("Predicted Posterior Distribution Means \nby Subject and Image") +
+  ylab("Mean")+
+  facet_wrap(~ID)+
+  theme_classic()
+################################
+#big plot
+
+grid.arrange(pp_1,pp_3,
+             pp_2,pp_4)
+
+
+
+
+
