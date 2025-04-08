@@ -1,22 +1,48 @@
 /*
-custom functions used in the model
 
-rescale_rate : 
-used for predictive checks and generating outputs, which align to expected data
-takes a real value on [0,1] and converts it to [minval,maxval] 
+CUSTOM FUNCTIONS USED IN A MODEL
 
-inv_rescale_rate :
-takes an integer value on [minval,maxval] and converts it to a real [0,1].
+--------------------------------------------------------------------------------
+[1] rescale_rate : 
 
-draw_from_vec_rng : draws a value from a vector with 
-probability of being drawn = 1/vector_length
+A function that is used for predictive checks and generating outputs, which align to expected data.
+Takes a real value on [0,1] and converts it to [minval, maxval].
 
-G_R_from_F_R_rng : returns a group rating based on the face rating and
-possible change values (-3,-2,0,2,3)
+Inputs:
+- x - a real number between 0 and 1.
+- minval - the minimum value.
+- maxval - the maximum value.
+--------------------------------------------------------------------------------
+[2] inv_rescale_rate :
 
-!!!!!!!!!! note to blzs <- inspect dynamic extremes, so pvals to F_R
-1 are not v(-3,-2,0,2,3) p(0.2,0.2,0.2,0.2,0.2) ~ v(0,2,3) p(0.6,0.2,0.2)
-!!!!!! reply to note: it makes it center biased instead of extreme biased
+Maps an integer value from a range [minval,maxval] to a real number in a range [0,1]. An inverse to the [1] function.
+
+Inputs:
+- x - an integer, between a range [minval, maxval].
+- minval - the minimum value.
+- maxval - the maximum value.
+--------------------------------------------------------------------------------
+[3] draw_from_vec_rng : 
+
+Draws a value from a vector with probability of being drawn equal to 1/vector_length.
+In simple terms, this function is the same as "sample()" function in R.
+All elements within the vector have equal probability to be drawn.
+
+Inputs:
+- x - a vector of numbers.
+--------------------------------------------------------------------------------
+[4] G_R_from_F_R_rng : 
+
+Returns a group rating based on the face rating and possible change values (-3,-2,0,2,3).
+
+Inputs:
+- F_R - one integer value, represents the face rating (agent's choice).
+- change_vals - a vector of values to be sampled from.
+- minval - the minimum value.
+- maxval - the maximum value.
+
+This function uses function [3] within.
+--------------------------------------------------------------------------------
 
 */
 functions {
@@ -166,17 +192,26 @@ The model block
 
 model {
 //estimate assumed rescaled S_R trust from F_R and G_R
-  
+
 for (i in 1:s){
   for (j in 1:n){
       
-      if(S_R_resc[i,j] == 0){
+      if (S_R_resc[i,j] == 0){
        target += beta_lpdf(0.1 | 0.1,
-                                          S_R_beta[i,j]);
+                                S_R_beta[i,j]);
       } else if (S_R_resc[i,j] == 1){
-       target += beta_lpdf(0.9 |S_R_alpha[i,j],
-                                          0.1);
+       target += beta_lpdf(0.9 | S_R_alpha[i,j],
+                                0.1);
+    
+     } else if (S_R_alpha[i,j] == 0){
+       target += beta_lpdf(0.1 | 0.1,
+                                S_R_beta[i,j]);
+      } else if (S_R_beta[i,j] == 0){
+       target += beta_lpdf(0.9 | S_R_alpha[i,j],
+                                0.1);
+                                          
       } else {
+
       
       target += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
                                           S_R_beta[i,j]);
@@ -278,16 +313,24 @@ array[s,n] real log_lik;
 for (i in 1:s){
   for (j in 1:n){
       
-      if(S_R_resc[i,j] == 0){
+      if (S_R_resc[i,j] == 0){
        log_lik[i,j] += beta_lpdf(0.1 | 0.1,
-                                          S_R_beta[i,j]);
+                                S_R_beta[i,j]);
       } else if (S_R_resc[i,j] == 1){
-      log_lik[i,j] += beta_lpdf(0.9 |S_R_alpha[i,j],
-                                          0.1);
+       log_lik[i,j] += beta_lpdf(0.9 | S_R_alpha[i,j],
+                                0.1);
+      } else if (S_R_alpha[i,j] == 0){
+       log_lik[i,j] += beta_lpdf(0.1 | 0.1,
+                                S_R_beta[i,j]);
+      } else if (S_R_beta[i,j] == 0){
+       log_lik[i,j] += beta_lpdf(0.9 | S_R_alpha[i,j],
+                                0.1);
+                                          
       } else {
       
       log_lik[i,j] += beta_lpdf(S_R_resc[i,j] | S_R_alpha[i,j],
                                                 S_R_beta[i,j]);
       }
   }
+}
 }
