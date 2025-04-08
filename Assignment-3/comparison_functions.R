@@ -92,8 +92,8 @@ compare_scenario_models <- function(loo_simple, loo_weighted, scenario_name) {
   
   # Calculate model weights
   weights <- loo_model_weights(list(
-    "Simple Bayesian" = loo_simple,
-    "Weighted Bayesian" = loo_weighted
+    "Blank slate beta model" = loo_simple,
+    "Random model" = loo_weighted
   ))
   
   # Print comparison
