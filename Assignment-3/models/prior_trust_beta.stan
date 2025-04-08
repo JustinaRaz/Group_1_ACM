@@ -48,7 +48,7 @@ functions {
       return result;
     }
     
-    real G_R_from_F_R_rng(int F_R, vector change_vals,
+    real G_R_from_F_R_rng(real F_R, vector change_vals,
                          int minval, int maxval){
     
     real change = round(draw_from_vec_rng(change_vals));
@@ -159,14 +159,16 @@ transformed data{
 /*
 The parameters of the Stan model that will be estimated.
 */
+
 parameters{
   
   // prior trust tendency
   array[s] real<lower=0> prior_alpha;
+  
   // information that only comes from seeing the image
   array[s,n] real<lower=0,upper=7> F_R_p_alpha;
-
 }
+
 /*
 The tranformed parameters block below 
 */
@@ -284,8 +286,8 @@ The generated quantities block
 
 generated quantities {
  //////////////// Prior predictive checks
-  array[s,n] real<lower=minval-1> prior_pred_alpha, prior_pred_beta;
-  array[s,n] real<lower=minval-1, upper=maxval-1>  prior_pred_F_R_p;
+  array[s] real<lower=minval-1> prior_pred_alpha, prior_pred_beta;
+  array[s,n] real<lower=minval, upper=maxval>  prior_pred_F_R_p;
   array[s,n] real<lower=minval, upper=maxval> prior_pred_F_R;
   vector[5] change_vals = [-3,-2,0,2,3]';
   array[s,n] real<lower=minval, upper=maxval> prior_pred_G_R;
@@ -296,15 +298,19 @@ generated quantities {
 
   for (i in 1:s){
           //drw prior trust
-          prior_pred_alpha[i] = gamma_rng(prior_shape,prior_rate);
+          prior_pred_alpha[i] = gamma_rng(prior_a_shape,prior_a_rate);
+          prior_pred_beta[i] = (maxval-1) -prior_pred_alpha[i];
+          if (prior_pred_beta[i] < 0){
+           prior_pred_beta[i] = 0.1; 
+          }
           
     for (j in 1:n){
       //draw prior F_R_ps
-      prior_pred_F_R_p[i,j] = categorical_rng(prior_pred_F_R_probs)-1;
+      prior_pred_F_R_p[i,j] = categorical_rng(prior_pred_F_R_probs);
       //draw First ratng
       prior_pred_F_R[i,j] =  round(
                               rescale_rate(beta_rng(prior_pred_alpha[i] +  (prior_pred_F_R_p[i,j]-1),
-                                                    (maxval-prior_pred_alpha[i]) +  (maxval-prior_pred_F_R_p[i,j])
+                                                    prior_pred_beta[i] +  (maxval-prior_pred_F_R_p[i,j])
                                                     ),
                                            minval,
                                            maxval
@@ -317,8 +323,8 @@ generated quantities {
    
       //hack to eliminate errors of alpha,theta or beta == 1 or 0;) 
       prior_pred_S_R[i,j] = round(
-                              rescale_rate(beta_rng(prior_pred_alpha[i] +  (prior_pred_F_R_p[i,j]-1) + (prior_pred_G_R[i,j]-1) +
-                                                    (maxval-prior_pred_alpha[i]) + (maxval-prior_pred_F_R_p[i,j]) + (maxval-prior_pred_G_R[i,j])
+                              rescale_rate(beta_rng(prior_pred_alpha[i] +  (prior_pred_F_R_p[i,j]-1) + (prior_pred_G_R[i,j]-1),
+                                                    prior_pred_beta[i] + (maxval-prior_pred_F_R_p[i,j]) + (maxval-prior_pred_G_R[i,j])
                                                     ),
                                            minval,
                                            maxval
@@ -328,13 +334,13 @@ generated quantities {
       
     }
     
-  }
+
  
   
   //////////////// Posterior predictive checks
   // make draws from updated trust values and round them
   array[s,n] real<lower=0> posterior_preds;
-  int<lower=minval-1> pp_S_R_alpha, pp_S_R_beta;
+  real<lower=minval-1> pp_S_R_alpha, pp_S_R_beta;
   for (i in 1:s){
     for (j in 1:n){
 
