@@ -92,3 +92,42 @@ df_data_to_list <- function(df){
   
   return(data)
 }
+
+
+# Function to simulate responses with different parameter settings
+simulate_responses <- function(agent, w, c) {
+  
+  observations <- experiment %>%
+    dplyr::select(c("height", "position"))
+  
+  category <- experiment$category
+  
+  if (w == "equal") {
+    weight <- rep(1 / 2, 2)
+  } else if (w == "skewed1") {
+    weight <- c(0, 1)
+  } else if (w == "skewed2") {
+    weight <- c(0.1, 0.9)
+  }
+  
+  # simulate responses
+  responses <- gcm(
+    weight,
+    c,
+    observations,
+    category
+  )
+  
+  tmp_simulated_responses <- experiment %>%
+    mutate(
+      trial = seq(nrow(experiment)),
+      sim_response = responses,
+      correct = ifelse(category == sim_response, 1, 0),
+      performance = cumsum(correct) / seq_along(correct),
+      c = c,
+      w = w,
+      agent = agent
+    )
+  
+  return(tmp_simulated_responses)
+}

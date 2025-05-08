@@ -1,8 +1,14 @@
 setwd("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-4")
 source("func.R")
+install.packages("furrr")
+install.packages("future")
 
+library("dplyr")
 library("tidyverse")
 library("dplyr")
+library("future")
+library("furrr")
+library("tidyr")
 
 set.seed(2000) # Reproducibility
 
@@ -19,7 +25,7 @@ set.seed(2000) # Reproducibility
 
 #---------------------- Specifications :
 
-subjects <- 50
+subjects <- 25
 sessions <- 3
 stimuli <- 32
 cycles <- 3
@@ -79,8 +85,81 @@ sim_data <- sim_data %>%
 
 rownames(sim_data) <- NULL
 
+sim_data <- sim_data %>%
+  mutate(category = case_when(
+    dangerous == 0 ~ 1, # when stimulus is not dangerous, the true response should be 1
+    dangerous == 1 ~ 2 # when stimulus is dangerous, the true response should be 2
+  ))
 
+#----------------------- Simulate responses
+# Function to simulate responses with different parameter settings
 
+simulate_responses <- function(agent, w, c) {
+  
+  observations <- sim_data %>%
+    dplyr::select(c("f1", "f2", "f3", "f4", "f5"))
+  
+  category <- sim_data$dangerous
+  
+  if (w == "equal") {
+    weight <- rep(1 / 2, 2)
+  } else if (w == "skewed1") {
+    weight <- c(0, 1)
+  } else if (w == "skewed2") {
+    weight <- c(0.1, 0.9)
+  }
+  
+  # simulate responses
+  responses <- gcm(
+    weight,
+    c,
+    observations,
+    category
+  )
+  
+  tmp_simulated_responses <- sim_data %>%
+    mutate(
+      sequence = seq(nrow(sim_data)),
+      sim_response = responses,
+      correct = ifelse(category == sim_response, 1, 0),
+      performance = cumsum(correct) / seq_along(correct),
+      c = c,
+      w = w,
+      agent = agent
+    )
+  
+  return(tmp_simulated_responses)
+}
+
+regenerate_simulations <- TRUE
+
+if (regenerate_simulations) {
+  
+  # simulate responses across parameter combinations
+  
+  plan(multisession, workers = availableCores())
+  
+  param_df <- dplyr::tibble(
+    expand_grid(
+      agent = unique(sim_data$subject), # changed this line from the Riccardo's code
+      c = seq(.1, 2, 0.2),
+      w = c("equal", "skewed1", "skewed2")
+    )
+  )
+  
+  simulated_responses <- future_pmap_dfr(param_df,
+                                         simulate_responses,
+                                         .options = furrr_options(seed = TRUE)
+  )
+  
+  # Save model fits
+  write_csv(simulated_responses, "simulated_responses.csv")
+  
+  cat("Simulation saved.\n")
+}
+
+# Load simulated responses:
+simulated_responses <- read_csv("simulated_responses.csv")
 
 
 #----------------------- Empirical data
