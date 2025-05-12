@@ -1,5 +1,4 @@
 
-source("func.R")
 library("dplyr")
 library("tidyverse")
 library("dplyr")
@@ -64,11 +63,11 @@ simulate_responses <- function(agent, w, c) {
   category <- sim_data$dangerous
   
   if (w == "equal") {
-    weight <- rep(1 / 2, 2)
+    weight <- rep(1 / 5, 5)
   } else if (w == "skewed1") {
     weight <- c(0, 1)
-  } else if (w == "skewed2") {
-    weight <- c(0.1, 0.9)
+  } else if (w == "informed") {
+    weight <- c(3/9,1/9,3/9,1/9,1/9)
   }
   
   # simulate responses
@@ -219,18 +218,18 @@ for (i in 1:5){
 #and rename
 equal_c0.5 <- fin_sim_response
 
-######## 5 non hier agents, 1 ruleset, skewed w, c = 1 
+######## 5 non hier agents, 1 ruleset, informed w, c = 1 
 for (i in 1:5){
   
   if (i == 1){
-    fin_sim_response <- simulate_responses(agent = "skewed_c1",
-                                           w = "skewed1",
+    fin_sim_response <- simulate_responses(agent = "informed_c1",
+                                           w = "informed",
                                            c = 1)
     fin_sim_response <- fin_sim_response %>% 
       mutate(subject = i)
   } else {
-    temp_sim_response <- simulate_responses(agent = "skewed_c1",
-                                            w = "skewed1",
+    temp_sim_response <- simulate_responses(agent = "informed_c1",
+                                            w = "informed",
                                             c = 1)
     temp_sim_response <- temp_sim_response %>% 
       mutate(subject = i)
@@ -240,20 +239,20 @@ for (i in 1:5){
   
 }
 #and rename
-skewed_c1 <- fin_sim_response
+informed_c1 <- fin_sim_response
 
-######## 5 non hier agents, 1 ruleset, skewed w, c = 0.5 
+######## 5 non hier agents, 1 ruleset, informed w, c = 0.5 
 for (i in 1:5){
   
   if (i == 1){
-    fin_sim_response <- simulate_responses(agent = "skewed_c0.5",
-                                           w = "skewed1",
+    fin_sim_response <- simulate_responses(agent = "informed_c0.5",
+                                           w = "informed",
                                            c = 0.5)
     fin_sim_response <- fin_sim_response %>% 
       mutate(subject = i)
   } else {
-    temp_sim_response <- simulate_responses(agent = "skewed_c0.5",
-                                            w = "skewed1",
+    temp_sim_response <- simulate_responses(agent = "informed_c0.5",
+                                            w = "informed",
                                             c = 0.5)
     temp_sim_response <- temp_sim_response %>% 
       mutate(subject = i)
@@ -263,8 +262,11 @@ for (i in 1:5){
   
 }
 #and rename
-skewed_c0.5 <- fin_sim_response
+informed_c0.5 <- fin_sim_response
 
-full_sim_response <- rbind(equal_c1,equal_c0.5,skewed_c1,skewed_c0.5)
+full_sim_response <- rbind(equal_c1,equal_c0.5,informed_c1,informed_c0.5)
 
+full_sim_response %>% 
+  group_by(agent, subject) %>%
+  reframe(median(performance))
 
