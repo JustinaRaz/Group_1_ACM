@@ -1,20 +1,19 @@
+# R script for data simulation
 
-library("dplyr")
-library("tidyverse")
-library("dplyr")
-library("future")
-library("furrr")
-library("tidyr")
+# Setting working directory:
+setwd("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-4")
 
+# Load packages:
+pacman::p_load("dplyr", "tidyverse", "future", "furrr", "tidyr", "ggplot2")
 
-# Distance 
-# measure the weighted distance between vectors?
+#---------------------- FUNCTIONS -----------------------
+
+# DISTANCE - measure the weighted distance between vectors?
 distance <- function(vect1, vect2, w) {
   return(sum(w * abs(vect1 - vect2)))
 }
 
-# Similarity
-# returns a value ]0,1[,
+# SIMILARITY - returns a value [0,1],
 # small c means they are similar regardless of distance
 similarity <- function(distance, c) {
   return(exp(-c * distance))
@@ -270,3 +269,20 @@ full_sim_response %>%
   group_by(agent, subject) %>%
   reframe(median(performance))
 
+
+ggplot(full_sim_response, aes(x = trial, y = performance, color = as.factor(subject))) +
+  geom_line() +
+  facet_grid(c ~ w, labeller = label_both) +
+  labs(
+    x = "Trial",
+    y = "Performance",
+    color = "Subject"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    strip.background = element_rect(fill = "lightgray"),
+    strip.text = element_text(face = "bold")
+    #panel.grid.major.y = element_line(color = "grey80"),  # horizontal grid lines
+    #panel.grid.minor.y = element_blank()  # optional: hide minor grid lines
+  )
