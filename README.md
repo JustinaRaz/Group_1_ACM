@@ -49,6 +49,6 @@ Assignment-4/
 ├── data/                              ---- 
 ├── model/                             ---- The folder with stan model.
 │   └── a4.stan                        ---- Stan model for categorization task.
-├── empirical_data_visualization.R     ---- Code to visualize empirical data.              
+├── empirical_data_vis.R               ---- Code to visualize empirical data.              
 └── func.R                             ---- Pre-defined functions, used in the scripts.
 ```
