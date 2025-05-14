@@ -1,6 +1,6 @@
 library(loo)
 
-setwd("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-3")
+setwd("")
 source("u_func.R")
 source("comparison_functions.R")
 
