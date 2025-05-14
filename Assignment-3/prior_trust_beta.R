@@ -81,8 +81,6 @@ samples <- mod$sample(
   iter_warmup = 1000,  # warmup iterations through which hyperparameters (steps and step length) are adjusted
   iter_sampling = 2000, # total number of iterations
   refresh = 100,
-  # how often to show that iterations have been run
-  #output_dir = "simmodels", # saves the samples as csv so it can be later loaded
   max_treedepth = 20, # how many steps in the future to check to avoid u-turns
   adapt_delta = 0.99,
   init = 0,# how high a learning rate to adjust hyperparameters during warmup
@@ -92,31 +90,34 @@ time_2 <-   Sys.time()
 
 time_2- time_1
 ## before :35 mins, 63% divergences
-#######################################
-################# prior predictive checks
-#extract prior_predictions
+
+
+################# PRIOR PREDICTIVE CHECKS #################
+
 prior_predictions <- samples$draws(
   variables = "prior_pred_S_R",
   inc_warmup = FALSE,
   format = "df"
 )
 
-
-#
 pp_vis <- untangle_estimates(prior_predictions,
                              nsubj = n_subj, 
                              nturn = n_image)
 
 pp_1 <- pp_vis %>% 
-  ### sample 100 values from prior dists
-  group_by(ID,FACE_ID) %>% 
-  reframe(draw = sample(value,100)) %>% 
-  ggplot(aes(x=draw, group = ID))+
-  geom_density(alpha= .5, color = "steelblue")+
-  scale_x_continuous(breaks = seq(1,8, by = 1)) +
-  ggtitle("100 Prior Prediction Draws")+
-  xlab("")+
-  theme_classic()
+  group_by(ID, FACE_ID) %>% 
+  reframe(draw = sample(value, 100)) %>% 
+  ggplot(aes(x = draw, fill = as.factor(ID))) +
+  geom_histogram(binwidth = 0.5, alpha = 0.6, position = "dodge", color = "black") + 
+  scale_x_continuous(breaks = seq(1, 8, by = 1)) +
+  ggtitle("100 Prior Prediction Draws by Participant") +
+  xlab("Draw Value") +
+  scale_fill_viridis_d() +
+  theme_classic() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.title = element_blank()
+  )
 
 pp_2 <- pp_vis %>% 
   ### sample 100 values from prior dists
@@ -129,31 +130,33 @@ pp_2 <- pp_vis %>%
   ggtitle("Predicted Prior Distribution Means \nby Subject and Image") +
   ylab("Mean")+
   facet_wrap(~ID)+
-  theme_classic()
+  theme_classic() + theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
-#######################################
-################# posterior predictive checks
-#extract prior_predictions
+
+################# POSTERIOR PREDICTIVE CHECKS #################
+
 posterior_predictions <- samples$draws(
   variables = "posterior_preds",
   inc_warmup = FALSE,
   format = "df"
 )
 
-
-#
 pp_2_vis <- untangle_estimates(posterior_predictions, nsubj = nsubj, nturn = n_image)
 
-pp_3 <-pp_2_vis %>% 
-  ### sample 100 values from prior dists
-  group_by(ID,FACE_ID) %>% 
-  reframe(draw = sample(value,100)) %>% 
-  ggplot(aes(x=draw, group = ID))+
-  geom_density(alpha= .5, color = "steelblue")+
-  scale_x_continuous(breaks = seq(1,8, by = 1)) +
-  ggtitle("100 Posterior Prediction Draws")+
-  xlab("")+
-  theme_classic()
+pp_3 <- pp_2_vis %>% 
+  group_by(ID, FACE_ID) %>% 
+  reframe(draw = sample(value, 100)) %>% 
+  ggplot(aes(x = draw, fill = as.factor(ID))) +  
+  geom_histogram(binwidth = 0.5, alpha = 0.6, position = "dodge", color = "black") + 
+  scale_x_continuous(breaks = seq(1, 8, by = 1)) +
+  ggtitle("100 Posterior Prediction Draws by Participant") +
+  xlab("Draw Value") +
+  scale_fill_viridis_d() + 
+  theme_classic() + 
+  theme(
+    plot.title = element_text(hjust = 0.5, face = "bold"),
+    legend.title = element_blank()
+  )
 
 
 pp_4 <-pp_2_vis %>% 
@@ -167,14 +170,7 @@ pp_4 <-pp_2_vis %>%
   ggtitle("Predicted Posterior Distribution Means \nby Subject and Image") +
   ylab("Mean")+
   facet_wrap(~ID)+
-  theme_classic()
-################################
-#big plot
+  theme_classic() + theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 grid.arrange(pp_1,pp_3,
              pp_2,pp_4)
-
-
-
-
-
