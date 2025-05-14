@@ -47,8 +47,8 @@ Assignment-3/
 ```
 Assignment-4/
 ├── data/                              ---- 
-├── models/                            ---- The folder with stan model.
-│   └── test_model_comparison_2.stan   ---- 
-├──               
+├── model/                             ---- The folder with stan model.
+│   └── a4.stan                        ---- Stan model for categorization task.
+├── empirical_data_visualization.R     ---- Code to visualize empirical data.              
 └── func.R                             ---- Pre-defined functions, used in the scripts.
 ```
