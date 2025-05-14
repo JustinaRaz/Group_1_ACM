@@ -66,7 +66,7 @@ grouprating <- rbeta(1000,2,5)
 secondrating <- rbeta(1000,4+2,3+5)
 
 df_vis <- tibble(type= rep(c("F_R","G_R","S_R"),each = 1000),
-                 vals = c(facerating,grouprating,secondrating)
+                 vals = c(facerating, grouprating, secondrating)
 )
 
 df_vis %>% 
@@ -91,17 +91,14 @@ data_l <- df_data_to_list(sim_dat)
 
 
 ####################################
+
 # model
 # since it has no parameters, the model can be made without estimation
 # it is basically the same as the generative mechanism, sampling from 
 # a beta distribution
 
-#posteriors <- blank_slate_model(data_l)
-#posteriors$posterior_preds
-
-
 #######################################################
-# stan it up
+
 file <- file.path("models/blank_slate_beta.stan")
 
 # Compile the model
@@ -111,25 +108,22 @@ mod <- cmdstan_model(file,
                      # this is a trick to make it faster
                      stanc_options = list("O1")) 
 
-# The following command calls Stan with specific options.
 samples <- mod$sample(
   fixed_param = TRUE,
-  data = data_l, # the data :-)
-  seed = 123,  # a seed, so I always get the same results
-  chains = 4,  # how many chains should I fit (to check whether they give the same results)
-  parallel_chains = 4, # how many of the chains can be run in parallel?
-  threads_per_chain = 1, # distribute gradient estimations within chain across multiple cores
-  iter_warmup = 0,  # warmup iterations through which hyperparameters (steps and step length) are adjusted
-  iter_sampling = 2000, # total number of iterations
+  data = data_l, 
+  seed = 123,
+  chains = 4, 
+  parallel_chains = 4,
+  threads_per_chain = 1, 
+  iter_warmup = 0,
+  iter_sampling = 2000,
   refresh = 200,
-  adapt_engaged =0# how often to show that iterations have been run
-  #output_dir = "simmodels", # saves the samples as csv so it can be later loaded
-  #max_treedepth = 20, # how many steps in the future to check to avoid u-turns
-  #adapt_delta = 0.99, # how high a learning rate to adjust hyperparameters during warmup
+  adapt_engaged =0
 )
 
-#######################################
-################# prior predictive checks
+
+################# PRIOR PREDICTIVE CHECKS #################
+
 #extract prior_predictions
 prior_predictions <- samples$draws(
   variables = "prior_pred_S_R",
@@ -137,22 +131,19 @@ prior_predictions <- samples$draws(
   format = "df"
 )
 
-
-#
 pp_vis <- untangle_estimates(prior_predictions,
                              nsubj = n_subj, 
                              nturn = n_image)
-
 pp_1 <- pp_vis %>% 
-  ### sample 100 values from prior dists
-group_by(ID,FACE_ID) %>% 
-  reframe(draw = sample(value,100)) %>% 
-  ggplot(aes(x=draw, group = ID))+
-  geom_density(alpha= .5, color = "steelblue")+
-  scale_x_continuous(breaks = seq(1,8, by = 1)) +
-  ggtitle("100 Prior Prediction Draws")+
-  xlab("")+
-  theme_classic()
+  group_by(ID, FACE_ID) %>% 
+  reframe(draw = sample(value, 100)) %>% 
+  ggplot(aes(x = draw)) +
+  geom_histogram(fill = "steelblue") +
+  ggtitle("100 Prior Prediction Draws") +
+  xlab("") +
+  scale_x_continuous(breaks = 1:8) +
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 pp_2 <- pp_vis %>% 
   ### sample 100 values from prior dists
@@ -165,10 +156,12 @@ pp_2 <- pp_vis %>%
   ggtitle("Predicted Prior Distribution Means \nby Subject and Image") +
   ylab("Mean")+
   facet_wrap(~ID)+
-  theme_classic()
+  theme_classic()  +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
-#######################################
-################# posterior predictive checks
+
+################# POSTERIOR PREDICTIVE CHECKS #################
+
 #extract prior_predictions
 posterior_predictions <- samples$draws(
   variables = "posterior_preds",
@@ -176,8 +169,6 @@ posterior_predictions <- samples$draws(
   format = "df"
 )
 
-
-#
 pp_2_vis <- untangle_estimates(posterior_predictions, nsubj = nsubj, nturn = n_image)
 
 pp_3 <-pp_2_vis %>% 
@@ -185,12 +176,12 @@ pp_3 <-pp_2_vis %>%
   group_by(ID,FACE_ID) %>% 
   reframe(draw = sample(value,100)) %>% 
   ggplot(aes(x=draw, group = ID))+
-  geom_density(alpha= .5, color = "steelblue")+
-  scale_x_continuous(breaks = seq(1,8, by = 1)) +
+  geom_histogram(fill = "steelblue") +
+  scale_x_continuous(breaks = 1:8) +
   ggtitle("100 Posterior Prediction Draws")+
   xlab("")+
-  theme_classic()
-
+  theme_classic() +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
 pp_4 <-pp_2_vis %>% 
   ### sample 100 values from prior dists
@@ -203,12 +194,15 @@ pp_4 <-pp_2_vis %>%
   ggtitle("Predicted Posterior Distribution Means \nby Subject and Image") +
   ylab("Mean")+
   facet_wrap(~ID)+
-  theme_classic()
-################################
-#big plot
+  theme_classic()  +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
 
-grid.arrange(pp_1,pp_3,
-             pp_2,pp_4)
+grid.arrange(pp_1,
+             pp_2)
+
+grid.arrange(pp_3,
+             pp_4)
+
 
 
 
