@@ -115,7 +115,7 @@ samples <- mod$sample(
   chains = 4, 
   parallel_chains = 4,
   threads_per_chain = 1, 
-  iter_warmup = 0,
+  iter_warmup = 1000,
   iter_sampling = 2000,
   refresh = 200,
   adapt_engaged =0
