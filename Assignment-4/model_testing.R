@@ -169,10 +169,10 @@ samples_emp <- mod$sample(
   init = 0,
 )
 
-saveRDS(samples_real, file = "data/samples_empirical.rds")
+saveRDS(samples_emp, file = "data/samples_empirical.rds")
 
 # Visualization
-estimates_emp <- samples_real$draws(
+estimates_emp <- samples_emp$draws(
   variables = c("w_prior[1]","w_prior[2]", "w_prior[3]", "w_prior[4]", "w_prior[5]", "c_prior", 
                 "w[1]", "w[2]", "w[3]", "w[4]", "w[5]", "c"),
   inc_warmup = FALSE,
