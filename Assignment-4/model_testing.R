@@ -1,4 +1,5 @@
-pacman::p_load("tidyverse", "ggplot2", "cmdstanr", "brms", "tidyr", "dplyr", "stringr")
+pacman::p_load("tidyverse", "ggplot2", "cmdstanr", "brms", "tidyr", "dplyr", 
+               "stringr", "posterior", "bayesplot")
 
 setwd("/Users/justina/Desktop/Aarhus_Uni/Master/Semester-2/ACM/A-4")
 source("u_func.R")
@@ -46,6 +47,21 @@ samples <- mod$sample(
 )
 
 saveRDS(samples, file = "data/samples_simulated.rds")
+
+# Traceplots for simulated data
+
+draws_sim <- samples$draws(
+  variables = c("c", "w[1]", "w[2]", "w[3]", "w[4]", "w[5]"),
+  format = "draws_array"
+)
+
+traceplot_sim <- mcmc_trace(draws_sim, facet_args = list(ncol = 2)) +
+  ggtitle("Simulated Data - Traceplot") +
+  theme_light(base_size = 13) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+ggsave("plots/traceplot_simulated.png", traceplot_sim, width = 12, height = 8)
+
 
 # Visualization
 estimates <- samples$draws(
@@ -171,6 +187,19 @@ samples_emp <- mod$sample(
 
 saveRDS(samples_emp, file = "data/samples_empirical.rds")
 
+# Traceplot for empirical data
+draws_emp <- samples_emp$draws(
+  variables = c("c", "w[1]", "w[2]", "w[3]", "w[4]", "w[5]"),
+  format = "draws_array"
+)
+
+traceplot_emp <- mcmc_trace(draws_emp, facet_args = list(ncol = 2)) +
+  ggtitle("Empirical Data - Traceplot") +
+  theme_light(base_size = 13) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold"))
+
+ggsave("plots/traceplot_empirical.png", traceplot_emp, width = 12, height = 8)
+
 # Visualization
 estimates_emp <- samples_emp$draws(
   variables = c("w_prior[1]","w_prior[2]", "w_prior[3]", "w_prior[4]", "w_prior[5]", "c_prior", 
@@ -206,7 +235,6 @@ estimates_long_no_c_emp <- estimates_long_emp %>%
 
 plot_c_e <- ggplot(c_e, aes(x = value, fill = type)) +
   geom_density(alpha = 0.6) +
-  geom_vline(xintercept = 1, color = "red", linetype = "dashed", linewidth = 0.5) +
   labs(title = "c", x = "Value", y = "Density", color = "Group", fill = "") +
   theme_classic() +
   scale_fill_manual(values = c("Prior" = "steelblue", "Posterior" = "darkorange")) +
@@ -220,8 +248,6 @@ plot_weights_e <- ggplot(estimates_long_no_c_emp, aes(x = value, fill = type)) +
   geom_density(alpha = 0.6) +
   facet_wrap(~group, scales = "fixed") +
   ylim(c(0, 15)) +
-  geom_vline(data = vline_data, aes(xintercept = xintercept), 
-             color = "red", linetype = "dashed", linewidth = 0.5) +
   scale_fill_manual(values = c("Prior" = "steelblue", "Posterior" = "darkorange")) +
   labs(x = "Value", y = "Density", fill = "") +
   theme_classic() +
@@ -230,3 +256,6 @@ plot_weights_e <- ggplot(estimates_long_no_c_emp, aes(x = value, fill = type)) +
   )
 
 ggsave("plots/weigths_empirical.png", plot = plot_weights_e, width = 7, height = 5)
+
+
+
