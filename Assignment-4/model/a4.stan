@@ -58,13 +58,13 @@ transformed parameters {
         // calculate distance from obs to all exemplars
         array[(i-1)] real exemplar_sim;
         
-        for (e in 1:(i-1)){
+        for (ex in 1:(i-1)){
             array[nfeatures] real tmp_dist;
             
             for (j in 1:nfeatures) {
-                tmp_dist[j] = w[j]*abs(obs[k,e,j] - obs[k,i,j]);
+                tmp_dist[j] = w[j]*abs(obs[k,ex,j] - obs[k,i,j]);
             }
-            exemplar_sim[e] = exp(-c * sum(tmp_dist));
+            exemplar_sim[ex] = exp(-c * sum(tmp_dist));
         }
 
         if (sum(cat_one[k,:(i-1)])==0 || sum(cat_two[k,:(i-1)])==0){  // if there are no examplars in one of the categories
@@ -76,8 +76,8 @@ transformed parameters {
             
             array[sum(cat_one[k,:(i-1)])] int tmp_idx_one = cat_one_idx[k,:sum(cat_one[k,:(i-1)])];
             array[sum(cat_two[k,:(i-1)])] int tmp_idx_two = cat_two_idx[k,:sum(cat_two[k,:(i-1)])];
-            similarities[1] = sum(exemplar_sim[tmp_idx_one]);
-            similarities[2] = sum(exemplar_sim[tmp_idx_two]);
+            similarities[1] = mean(exemplar_sim[tmp_idx_one]);
+            similarities[2] = mean(exemplar_sim[tmp_idx_two]);
 
             // calculate r[i]
             // rr[k,i] = (b*similarities[1]) / (b*similarities[1] + (1-b)*similarities[2]);
@@ -106,7 +106,7 @@ model {
     
     // Decision Data
     for (k in 1:n_subj){
-      for (i in 1:n_subj){
+      for (i in 1:ntrials){
         
             target += bernoulli_lpmf(y[k,i] | r[k,i]);
     }
