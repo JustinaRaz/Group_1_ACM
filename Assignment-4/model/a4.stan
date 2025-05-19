@@ -115,9 +115,80 @@ model {
 }
 
 generated quantities {
-    // Prior samples, posterior predictions, and log likelihood calculations...
     vector[nfeatures] w_prior;
     real c_prior;
     w_prior = dirichlet_rng(w_prior_values);
-    c_prior = inv_logit(normal_rng(c_prior_values[1], c_prior_values[2]));
+    c_prior = inv_logit(normal_rng(c_prior_values[1], c_prior_values[2]))*2;
+    //prior predictive checks
+    
+    // parameter r (probability of response = category 1)
+    array[n_subj, ntrials] real<lower=0.0001, upper=0.9999> r_p;
+    array[n_subj, ntrials] real rr_p;
+    
+    for (k in 1:n_subj){
+    
+    for (i in 1:ntrials) {
+
+        // calculate distance from obs to all exemplars
+        array[(i-1)] real exemplar_sim;
+        
+        for (ex in 1:(i-1)){
+            array[nfeatures] real tmp_dist;
+            
+            for (j in 1:nfeatures) {
+                tmp_dist[j] = w_prior[j]*abs(obs[k,ex,j] - obs[k,i,j]);
+            }
+            exemplar_sim[ex] = exp(-c_prior * sum(tmp_dist));
+        }
+
+        if (sum(cat_one[k,:(i-1)])==0 || sum(cat_two[k,:(i-1)])==0){  // if there are no examplars in one of the categories
+            r_p[k,i] = 0.5;
+
+        } else {
+            // calculate similarity
+            array[2] real similarities;
+            
+            array[sum(cat_one[k,:(i-1)])] int tmp_idx_one = cat_one_idx[k,:sum(cat_one[k,:(i-1)])];
+            array[sum(cat_two[k,:(i-1)])] int tmp_idx_two = cat_two_idx[k,:sum(cat_two[k,:(i-1)])];
+            similarities[1] = mean(exemplar_sim[tmp_idx_one]);
+            similarities[2] = mean(exemplar_sim[tmp_idx_two]);
+
+            // calculate r[i]
+            // rr[k,i] = (b*similarities[1]) / (b*similarities[1] + (1-b)*similarities[2]);
+            rr_p[k,i] = (similarities[1]) / (similarities[1] + similarities[2]);
+
+            // to make the sampling work
+            if (rr_p[k,i] > 0.9999){
+                r_p[k,i] = 0.9999;
+            } else if (rr_p[k,i] < 0.0001) {
+                r_p[k,i] = 0.0001;
+            } else if (rr_p[k,i] > 0.0001 && rr_p[k,i] < 0.9999) {
+                r_p[k,i] = rr_p[k,i];
+            } else {
+                r_p[k,i] = 0.5;
+            }
+        }
+    }
+    }
+
+  array[n_subj, ntrials] int prior_preds;
+  // Decision Data
+    for (k in 1:n_subj){
+      for (i in 1:ntrials){
+        
+            prior_preds[k,i] = bernoulli_rng(r_p[k,i]);
+    }
+    }
+    
+    //posterior predicitive chechks 
+    array[n_subj, ntrials] int posterior_preds;
+     // Decision Data
+    for (k in 1:n_subj){
+      for (i in 1:ntrials){
+        
+            posterior_preds[k,i] = bernoulli_rng(r[k,i]);
+    }
+    }
+    
+    
 }
