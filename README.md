@@ -20,10 +20,10 @@ Assignment-1/
 
 ```
 Assignment_2/
-├── models/                    ---- The folder with stan models.
-├── ReinforcementLearning.R    ---- Running the stan.
-├── param_recov_RL.R           ---- Script with parameter recovery.
-└── u_func.R                   ---- Pre-defined functions, used in the scripts.
+├── models/                            ---- The folder with stan models.
+├── ReinforcementLearning.R            ---- Running the stan.
+├── param_recov_RL.R                   ---- Script with parameter recovery.
+└── u_func.R                           ---- Pre-defined functions, used in the scripts.
 ```
 
 ### Assignment 3: Analysis of real world data using Bayesian models of Cognition
