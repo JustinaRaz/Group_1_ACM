@@ -49,9 +49,9 @@ Assignment-4/
 ├── data/                              ---- Contains empirical dataset + data from simulations and model fitting.
 ├── model/                             ---- The folder with a stan model.
 │   └── a4.stan                        ---- Stan model for categorization task.
-├──
-├── 
+├── plots/                             ---- All plots used in the assignment.
 ├── data_sim.R                         ---- Data simulation, performance plotting.
-├── empirical_data_vis.R               ---- Code to visualize empirical data.              
+├── empirical_data_vis.R               ---- Code to visualize empirical data.
+├── model_testing.R                    ---- Model fitting on simulated and empirical data, plotting, pp-checks.          
 └── u_func.R                           ---- Pre-defined functions, used in the scripts.
 ```
